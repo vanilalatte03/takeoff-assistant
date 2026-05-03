@@ -91,6 +91,19 @@ def test_classify_sheet_role_scans_title_like_lines_in_text_content() -> None:
     )
 
 
+def test_classify_sheet_role_ignores_finish_schedule_reference_notes() -> None:
+    role = classify_sheet_role(
+        "GENERAL NOTES & SCOPE OF WORKS",
+        """
+        GENERAL SHEET NOTES
+        1. REFER TO AE601 FOR EXTERIOR FINISH SCHEDULE
+        2. REFER TO AE601 FOR INTERIOR FINISH SCHEDULE
+        """,
+    )
+
+    assert role == DrawingSheetRole.UNKNOWN
+
+
 def test_classify_sheet_role_does_not_use_sheet_number() -> None:
     sheets = [
         DrawingSheet(

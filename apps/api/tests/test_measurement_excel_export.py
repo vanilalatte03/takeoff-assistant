@@ -154,9 +154,7 @@ def test_measurement_export_contains_summary_and_details(client_with_export_data
     assert [summary_sheet.cell(2, column).value for column in range(1, 4)] == ["FLOOR", "VCT", "m2"]
     assert Decimal(str(summary_sheet["D2"].value)) == Decimal("15.75")
     assert summary_sheet["E2"].value == "AE401, AE101, AE402"
-    assert [summary_sheet.cell(3, column).value for column in range(1, 4)] == ["WALL", "GWB", "m2"]
-    assert Decimal(str(summary_sheet["D3"].value)) == Decimal("0")
-    assert summary_sheet["E3"].value == "AE401"
+    assert summary_sheet.max_row == 2
     assert summary_sheet["D2"].number_format == "0.00"
 
     details_sheet = workbook["Details"]
@@ -189,6 +187,7 @@ def test_measurement_export_contains_summary_and_details(client_with_export_data
         "checked by user",
     ]
     assert details_sheet["G2"].number_format == "0.00"
+    assert details_sheet["G4"].value is None
 
 
 def test_measurement_export_requires_existing_drawing_file(client_with_export_data) -> None:

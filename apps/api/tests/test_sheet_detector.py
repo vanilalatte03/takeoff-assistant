@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,6 +10,8 @@ from app.db.init_db import init_db
 from app.db.session import get_db
 from app.main import app
 from app.models import DrawingFile, DrawingSheet, Project, ReviewStatus
+from app.models.enums import DrawingSheetRole
+from app.services.sheet_classifier import classify_and_apply_sheet_roles
 from app.services.sheet_detector import detect_and_apply_sheet_metadata, detect_sheet_metadata
 
 
@@ -84,6 +87,49 @@ def test_detect_sheet_metadata_from_standalone_sheet_no_and_nearby_title() -> No
     assert detection.confidence == 0.65
 
 
+def test_detect_sheet_metadata_ignores_reference_lines_before_title_block() -> None:
+    detection = detect_sheet_metadata(
+        """
+        GENERAL SHEET NOTES
+        REFER TO A-001 FOR ABBREVIATION AND DRAWING SYMBOLS
+        REFER TO AE601 FOR INTERIOR FINISH SCHEDULE
+        AE101
+        FLOOR PLAN
+        """
+    )
+
+    assert detection.sheet_no == "AE101"
+    assert detection.sheet_title == "FLOOR PLAN"
+    assert detection.confidence == 0.65
+
+
+def test_index_detection_supports_title_before_sheet_number_pairs() -> None:
+    sheets = [
+        DrawingSheet(
+            drawing_file_id=1,
+            page_index=0,
+            text_content="""
+            INDEX OF DRAWINGS
+            NUMBER
+            SHEET NAME
+            FLOOR PLAN
+            AE101
+            EXTERIOR & INTERIOR FINISH SCHEDULE
+            AE601
+            """,
+        ),
+        DrawingSheet(drawing_file_id=1, page_index=1, text_content="AE101 TITLE BLOCK"),
+        DrawingSheet(drawing_file_id=1, page_index=2, text_content="AE601 TITLE BLOCK"),
+    ]
+
+    detected = detect_and_apply_sheet_metadata(sheets)
+
+    assert detected[1].sheet_no == "AE101"
+    assert detected[1].sheet_title == "FLOOR PLAN"
+    assert detected[2].sheet_no == "AE601"
+    assert detected[2].sheet_title == "EXTERIOR & INTERIOR FINISH SCHEDULE"
+
+
 def test_index_sequence_maps_low_confidence_pages_without_title() -> None:
     sheets = [
         DrawingSheet(
@@ -97,6 +143,31 @@ def test_index_sequence_maps_low_confidence_pages_without_title() -> None:
         ),
         DrawingSheet(drawing_file_id=1, page_index=1, text_content="GENERAL NOTES WITHOUT TITLE BLOCK"),
         DrawingSheet(drawing_file_id=1, page_index=2, text_content="ANOTHER PAGE WITHOUT TITLE BLOCK"),
+    ]
+
+    detected = detect_and_apply_sheet_metadata(sheets)
+
+    assert detected[1].sheet_no is None
+    assert detected[1].sheet_title is None
+    assert detected[1].sheet_detection_confidence == 0
+    assert detected[2].sheet_no is None
+    assert detected[2].sheet_title is None
+    assert detected[2].sheet_detection_confidence == 0
+
+
+def test_index_sequence_maps_only_when_page_has_title_evidence() -> None:
+    sheets = [
+        DrawingSheet(
+            drawing_file_id=1,
+            page_index=0,
+            text_content="""
+            INDEX OF DRAWINGS
+            AE101 NEW FLOOR PLAN
+            AE401 INTR / EXT FINISH SCHEDULE
+            """,
+        ),
+        DrawingSheet(drawing_file_id=1, page_index=1, text_content="FLOOR PLAN"),
+        DrawingSheet(drawing_file_id=1, page_index=2, text_content="INTR / EXT FINISH SCHEDULE"),
     ]
 
     detected = detect_and_apply_sheet_metadata(sheets)
@@ -236,3 +307,23 @@ def test_detect_endpoint_requires_existing_drawing_file(client_with_db) -> None:
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Drawing file not found."
+
+
+def test_sample_pdf_ae601_search_metadata_only_matches_actual_finish_schedule_page() -> None:
+    fitz = pytest.importorskip("fitz")
+    sample_pdf = Path(__file__).resolve().parents[3] / "data" / "samples" / "25BA005_Drawings-1.pdf"
+    if not sample_pdf.is_file():
+        pytest.skip("sample PDF is not available")
+
+    with fitz.open(sample_pdf) as document:
+        sheets = [
+            DrawingSheet(drawing_file_id=1, page_index=index, text_content=page.get_text("text"))
+            for index, page in enumerate(document)
+        ]
+
+    classified = classify_and_apply_sheet_roles(detect_and_apply_sheet_metadata(sheets))
+    ae601_sheets = [sheet for sheet in classified if sheet.sheet_no == "AE601"]
+
+    assert [(sheet.page_index, sheet.role) for sheet in ae601_sheets] == [
+        (56, DrawingSheetRole.FINISH_SCHEDULE),
+    ]

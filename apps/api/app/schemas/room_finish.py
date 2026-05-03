@@ -27,6 +27,25 @@ class RoomFinishCreate(RoomFinishBase):
     pass
 
 
+class RoomFinishDrawingFileCreate(BaseModel):
+    drawing_sheet_id: int | None = None
+    room_no: str | None = None
+    room_name: str | None = None
+    floor_material: str | None = None
+    floor_finish: str | None = None
+    base_material: str | None = None
+    base_finish: str | None = None
+    wall_material: str | None = None
+    wall_finish: str | None = None
+    ceiling_material: str | None = None
+    ceiling_finish: str | None = None
+    height: str | None = None
+    remarks: str | None = None
+    source_sheet_no: str | None = None
+    confidence: float | None = None
+    status: ReviewStatus = ReviewStatus.NEEDS_REVIEW
+
+
 class RoomFinishUpdate(BaseModel):
     drawing_sheet_id: int | None = None
     room_no: str | None = None

@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import re
 from collections.abc import Iterable
 
-from app.models import DrawingSheet, ReviewStatus
+from app.models import DrawingSheet, DrawingSheetRole, ReviewStatus
 
 
 INDEX_PAGE_TITLES = (
@@ -32,17 +32,19 @@ def detect_and_apply_sheet_metadata(sheets: Iterable[DrawingSheet]) -> list[Draw
         if not _is_index_page(sheet.text_content):
             if detection.confidence <= 0.3 and non_index_position < len(index_sequence):
                 index_detection = index_sequence[non_index_position]
-                detection = SheetDetection(
-                    sheet_no=index_detection.sheet_no,
-                    sheet_title=index_detection.sheet_title,
-                    confidence=max(detection.confidence, 0.45),
-                )
+                if _has_index_page_evidence(sheet.text_content, index_detection):
+                    detection = SheetDetection(
+                        sheet_no=index_detection.sheet_no,
+                        sheet_title=index_detection.sheet_title,
+                        confidence=max(detection.confidence, 0.45),
+                    )
             non_index_position += 1
         sheet.sheet_no = detection.sheet_no
         sheet.sheet_title = detection.sheet_title
         sheet.sheet_detection_confidence = detection.confidence
         if detection.confidence == 0:
             sheet.status = ReviewStatus.NEEDS_REVIEW
+            sheet.role = DrawingSheetRole.UNKNOWN
         elif sheet.status == ReviewStatus.NEEDS_REVIEW and sheet.text_content.strip():
             sheet.status = ReviewStatus.DRAFT
 
@@ -85,14 +87,57 @@ def _build_index_sequence(sheets: Iterable[DrawingSheet]) -> list[SheetDetection
 
 def _index_detections(sheets: Iterable[DrawingSheet]) -> list[SheetDetection]:
     detections: list[SheetDetection] = []
+    seen_sheet_nos: set[str] = set()
     for sheet in sheets:
         if not _is_index_page(sheet.text_content):
             continue
-        for line in _normalized_lines(sheet.text_content):
+        lines = _normalized_lines(sheet.text_content)
+        for index, line in enumerate(lines):
             parsed = _parse_sheet_line(line)
             if parsed.sheet_no and parsed.sheet_title:
-                detections.append(parsed)
+                _append_index_detection(detections, seen_sheet_nos, parsed)
+                continue
+
+            sheet_no = _parse_standalone_sheet_no(line)
+            if not sheet_no:
+                continue
+            previous_title = _clean_title(lines[index - 1]) if index > 0 else None
+            next_title = _clean_title(lines[index + 1]) if index + 1 < len(lines) else None
+            title = _choose_adjacent_index_title(previous_title, next_title)
+            if title:
+                _append_index_detection(
+                    detections,
+                    seen_sheet_nos,
+                    SheetDetection(sheet_no=sheet_no, sheet_title=title, confidence=0.72),
+                )
     return detections
+
+
+def _append_index_detection(
+    detections: list[SheetDetection],
+    seen_sheet_nos: set[str],
+    detection: SheetDetection,
+) -> None:
+    if detection.sheet_no is None:
+        return
+    canonical_sheet_no = _canonical_sheet_no(detection.sheet_no)
+    if canonical_sheet_no in seen_sheet_nos:
+        return
+    seen_sheet_nos.add(canonical_sheet_no)
+    detections.append(detection)
+
+
+def _choose_adjacent_index_title(previous_title: str | None, next_title: str | None) -> str | None:
+    if next_title and (
+        not previous_title
+        or _contains_index_title(next_title)
+        or _contains_index_title(previous_title)
+        or _is_index_header_title(previous_title)
+    ):
+        return next_title
+    if previous_title and not _is_index_header_title(previous_title):
+        return previous_title
+    return next_title
 
 
 def _detect_from_title_block(text: str, is_index_page: bool) -> SheetDetection:
@@ -107,12 +152,13 @@ def _detect_from_title_block(text: str, is_index_page: bool) -> SheetDetection:
                 return SheetDetection(parsed.sheet_no, parsed.sheet_title, 0.85)
         return SheetDetection(sheet_no=None, sheet_title=None, confidence=0)
 
-    for line in lines:
+    for line in reversed(lines):
         parsed = _parse_sheet_line(line)
         if parsed.sheet_no and parsed.sheet_title:
             return SheetDetection(parsed.sheet_no, parsed.sheet_title, 0.8)
 
-    for index, line in enumerate(lines):
+    for index in range(len(lines) - 1, -1, -1):
+        line = lines[index]
         sheet_no = _parse_standalone_sheet_no(line)
         if not sheet_no:
             continue
@@ -134,6 +180,29 @@ def _contains_index_title(text: str) -> bool:
     return any(title in upper_text for title in INDEX_PAGE_TITLES)
 
 
+def _has_index_page_evidence(text: str, detection: SheetDetection) -> bool:
+    if not detection.sheet_no and not detection.sheet_title:
+        return False
+    canonical_sheet_no = _canonical_sheet_no(detection.sheet_no) if detection.sheet_no else None
+    compact_title = _compact(detection.sheet_title or "")
+    for line in _normalized_lines(text):
+        if _is_reference_line(line):
+            continue
+        parsed = _parse_sheet_line(line)
+        if canonical_sheet_no and parsed.sheet_no and _canonical_sheet_no(parsed.sheet_no) == canonical_sheet_no:
+            return True
+        standalone_sheet_no = _parse_standalone_sheet_no(line)
+        if canonical_sheet_no and standalone_sheet_no and _canonical_sheet_no(standalone_sheet_no) == canonical_sheet_no:
+            return True
+        clean_title = _clean_title(line)
+        compact_line_title = _compact(clean_title or "")
+        if compact_title and compact_line_title and (
+            compact_title in compact_line_title or compact_line_title in compact_title
+        ):
+            return True
+    return False
+
+
 def _normalized_lines(text: str) -> list[str]:
     return [
         re.sub(r"\s+", " ", line).strip(" \t:-|")
@@ -143,6 +212,8 @@ def _normalized_lines(text: str) -> list[str]:
 
 
 def _parse_sheet_line(line: str) -> SheetDetection:
+    if _is_reference_line(line):
+        return SheetDetection(sheet_no=None, sheet_title=None, confidence=0)
     match = SHEET_NO_PATTERN.search(line.upper())
     if not match:
         return SheetDetection(sheet_no=None, sheet_title=None, confidence=0)
@@ -167,6 +238,8 @@ def _nearest_title_line(lines: list[str], sheet_no_index: int) -> str | None:
         candidate_index = sheet_no_index + offset
         if candidate_index < 0 or candidate_index >= len(lines):
             continue
+        if _is_reference_line(lines[candidate_index]):
+            continue
         title = _clean_title(lines[candidate_index])
         if title and not SHEET_NO_PATTERN.search(title):
             return title
@@ -178,11 +251,43 @@ def _clean_title(value: str) -> str | None:
     if not title:
         return None
     upper_title = title.upper()
-    if upper_title in {"SHEET", "SHEET NO", "SHEET NUMBER", "DRAWING NO", "DRAWING NUMBER"}:
+    if upper_title in {
+        "SHEET",
+        "SHEET NO",
+        "SHEET NUMBER",
+        "SHEET NAME",
+        "DRAWING NO",
+        "DRAWING NUMBER",
+        "NUMBER",
+    }:
+        return None
+    if _is_index_header_title(upper_title):
         return None
     if not re.search(r"[A-Z]", upper_title):
         return None
     return upper_title
+
+
+def _is_index_header_title(value: str) -> bool:
+    return value.upper() in {
+        "GENERAL",
+        "CIVIL",
+        "STRUCTURAL",
+        "LIFE SAFETY",
+        "MECHANICAL",
+        "FIRE PROTECTION",
+        "ELECTRICAL",
+        "ARCHITECTURE",
+        "PLUMBING",
+    }
+
+
+def _is_reference_line(value: str) -> bool:
+    return re.search(r"\b(REFER|SEE)\s+TO\b", value.upper()) is not None
+
+
+def _compact(value: str) -> str:
+    return re.sub(r"[^A-Z0-9]+", "", value.upper())
 
 
 def _normalize_sheet_no(value: str) -> str:

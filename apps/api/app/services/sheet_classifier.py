@@ -35,8 +35,13 @@ def classify_sheet_role(sheet_title: str | None, text_content: str | None = None
     if not title and _contains_any(text, INDEX_PAGE_TITLES):
         return DrawingSheetRole.UNKNOWN
 
+    if title and text_content and _is_finish_schedule(title) and not _has_finish_schedule_page_evidence(text_content):
+        return DrawingSheetRole.UNKNOWN
+
     for candidate in _classification_candidates(sheet_title, text_content):
         role = _classify_candidate(candidate)
+        if role == DrawingSheetRole.FINISH_SCHEDULE and not _has_finish_schedule_candidate_evidence(candidate, text_content or ""):
+            continue
         if role != DrawingSheetRole.UNKNOWN:
             return role
     return DrawingSheetRole.UNKNOWN
@@ -48,10 +53,8 @@ def _classification_candidates(sheet_title: str | None, text_content: str | None
         candidates.append(_normalize(sheet_title))
     for line in (text_content or "").splitlines():
         normalized = _normalize(line)
-        if normalized:
+        if normalized and _looks_like_role_candidate(normalized):
             candidates.append(normalized)
-    if text_content:
-        candidates.append(_normalize(text_content))
     return candidates
 
 
@@ -86,7 +89,71 @@ def _classify_candidate(classification_text: str) -> DrawingSheetRole:
 
 
 def _is_finish_schedule(value: str) -> bool:
-    return _contains_word(value, "FINISH") and _contains_word(value, "SCHEDULE")
+    return (
+        _contains_compact(value, "INTERIOR FINISH SCHEDULE")
+        or _contains_compact(value, "EXTERIOR FINISH SCHEDULE")
+        or (_contains_word(value, "FINISH") and _contains_word(value, "SCHEDULE"))
+    )
+
+
+def _has_finish_schedule_candidate_evidence(candidate: str, text_content: str) -> bool:
+    if not text_content:
+        return _contains_finish_schedule_title(candidate)
+    return _has_finish_schedule_page_evidence(text_content) or _contains_finish_schedule_title(candidate)
+
+
+def _has_finish_schedule_page_evidence(text_content: str) -> bool:
+    lines = [_normalize(line) for line in text_content.splitlines() if line.strip()]
+    non_reference_lines = [line for line in lines if not _is_reference_line(line)]
+    if any(_contains_finish_schedule_title(line) for line in non_reference_lines):
+        return True
+    return _has_finish_schedule_table_evidence(non_reference_lines)
+
+
+def _contains_finish_schedule_title(value: str) -> bool:
+    return (
+        _contains_compact(value, "EXTERIOR INTERIOR FINISH SCHEDULE")
+        or _contains_compact(value, "EXTERIOR AND INTERIOR FINISH SCHEDULE")
+        or _contains_compact(value, "INTERIOR FINISH SCHEDULE")
+        or _contains_compact(value, "INTR EXT FINISH SCHEDULE")
+    )
+
+
+def _has_finish_schedule_table_evidence(lines: list[str]) -> bool:
+    text = " ".join(lines)
+    required_terms = ("ROOM", "FLOOR", "BASE", "CEILING")
+    return "FINISH" in text and all(term in text for term in required_terms)
+
+
+def _looks_like_role_candidate(value: str) -> bool:
+    if _is_reference_line(value):
+        return False
+    if _contains_any(
+        value,
+        (
+            "GENERAL SHEET NOTES",
+            "SHEET KEYNOTES",
+            "LEGEND",
+            "SCALE",
+        ),
+    ):
+        return False
+    if len(value) > 120:
+        return False
+    return any(
+        marker in value
+        for marker in (
+            "PLAN",
+            "SCHEDULE",
+            "DETAIL",
+            "ELEVATION",
+            "SECTION",
+        )
+    ) or _contains_compact(value, "INTERIOR FINISH SCHEDULE")
+
+
+def _is_reference_line(value: str) -> bool:
+    return bool(re.search(r"\b(REFER|SEE)\s+TO\b", value))
 
 
 def _normalize(value: str) -> str:
@@ -111,3 +178,7 @@ def _contains_word(value: str, word: str) -> bool:
 
 def _contains_detail(value: str) -> bool:
     return re.search(r"\bDETAILS?\b", value) is not None
+
+
+def _contains_compact(value: str, phrase: str) -> bool:
+    return re.sub(r"[^A-Z0-9]+", "", phrase.upper()) in re.sub(r"[^A-Z0-9]+", "", value.upper())

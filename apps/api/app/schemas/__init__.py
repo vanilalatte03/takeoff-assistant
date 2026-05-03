@@ -20,6 +20,7 @@ from app.schemas.measurement import (
 from app.schemas.project import ProjectCreate, ProjectRead
 from app.schemas.room_finish import (
     RoomFinishCreate,
+    RoomFinishDrawingFileCreate,
     RoomFinishExtractionResult,
     RoomFinishRead,
     RoomFinishUpdate,
@@ -44,6 +45,7 @@ __all__ = [
     "ProjectCreate",
     "ProjectRead",
     "RoomFinishCreate",
+    "RoomFinishDrawingFileCreate",
     "RoomFinishExtractionResult",
     "RoomFinishRead",
     "RoomFinishUpdate",

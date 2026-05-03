@@ -4,7 +4,11 @@ from app.services.calculation_engine import (
     DeductionInput,
     calculate,
 )
-from app.services.finish_schedule_extractor import RoomFinishCandidate, extract_room_finish_candidates
+from app.services.finish_schedule_extractor import (
+    RoomFinishCandidate,
+    extract_room_finish_candidates,
+    extract_room_finish_candidates_from_blocks,
+)
 from app.services.measurement_candidate_generator import (
     MeasurementCandidateSpec,
     build_measurement_candidate,
@@ -35,6 +39,7 @@ __all__ = [
     "detect_sheet_metadata",
     "existing_measurement_keys",
     "extract_room_finish_candidates",
+    "extract_room_finish_candidates_from_blocks",
     "filter_sheets_by_keyword",
     "filter_sheets_by_sheet_no",
 ]

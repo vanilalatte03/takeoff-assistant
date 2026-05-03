@@ -31,6 +31,9 @@ class MeasurementCreate(MeasurementBase):
 
 
 class MeasurementUpdate(BaseModel):
+    category: str | None = None
+    finish_code: str | None = None
+    measurement_type: MeasurementType | None = None
     formula: str | None = None
     quantity: Decimal | None = None
     unit: str | None = None

@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.models import DrawingFile, DrawingSheet, Measurement, ReviewStatus, RoomFinish
+from app.models import CalculationType, DrawingFile, DrawingSheet, Measurement, MeasurementType, ReviewStatus, RoomFinish
 from app.schemas import MeasurementCalculationInput, MeasurementGenerationResult, MeasurementRead, MeasurementUpdate
 from app.services import (
     CalculationInput,
@@ -118,6 +118,16 @@ def calculate_measurement(
             detail="Measurement not found.",
         )
 
+    allowed_calculation_types = _allowed_calculation_types(measurement.measurement_type)
+    if payload.calculation_type not in allowed_calculation_types:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": f"{payload.calculation_type.value} is not allowed for {measurement.measurement_type.value}.",
+                "allowed_calculation_types": [calculation_type.value for calculation_type in allowed_calculation_types],
+            },
+        )
+
     try:
         result = calculate(
             CalculationInput(
@@ -214,3 +224,17 @@ def _measurements_for_drawing_file(db: Session, drawing_file: DrawingFile) -> li
         .order_by(Measurement.id)
         .all()
     )
+
+
+def _allowed_calculation_types(measurement_type: MeasurementType) -> tuple[CalculationType, ...]:
+    if measurement_type in {MeasurementType.FLOOR_AREA, MeasurementType.CEILING_AREA}:
+        return (CalculationType.AREA_RECTANGLE, CalculationType.CUSTOM)
+    if measurement_type == MeasurementType.PERIMETER_LENGTH:
+        return (CalculationType.PERIMETER_RECTANGLE, CalculationType.CUSTOM)
+    if measurement_type == MeasurementType.WALL_AREA:
+        return (CalculationType.WALL_AREA, CalculationType.CUSTOM)
+    if measurement_type == MeasurementType.PARTITION_AREA:
+        return (CalculationType.PARTITION_AREA, CalculationType.CUSTOM)
+    if measurement_type == MeasurementType.COUNT:
+        return (CalculationType.COUNT, CalculationType.CUSTOM)
+    return (CalculationType.CUSTOM,)

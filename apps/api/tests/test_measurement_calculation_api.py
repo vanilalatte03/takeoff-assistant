@@ -112,17 +112,38 @@ def test_calculate_measurement_api_reuses_existing_source_sheets_when_omitted(cl
     response = client.post(
         f"/measurements/{measurement_id}/calculate",
         json={
-            "calculation_type": "COUNT",
-            "count": "3",
+            "calculation_type": "AREA_RECTANGLE",
+            "width": "3",
+            "height": "2",
         },
     )
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["formula"] == "3"
-    assert Decimal(str(payload["quantity"])) == Decimal("3.00")
-    assert payload["unit"] == "EA"
+    assert payload["formula"] == "3 * 2"
+    assert Decimal(str(payload["quantity"])) == Decimal("6.00")
+    assert payload["unit"] == "m2"
     assert payload["source_sheets"] == "AE401"
+
+
+def test_calculate_measurement_api_rejects_incompatible_calculation_type(client_with_measurement) -> None:
+    client, _, measurement_id = client_with_measurement
+
+    response = client.post(
+        f"/measurements/{measurement_id}/calculate",
+        json={
+            "calculation_type": "PARTITION_AREA",
+            "wall_length": "4.2",
+            "wall_height": "2.7",
+            "side_multiplier": "2",
+        },
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == {
+        "message": "PARTITION_AREA is not allowed for FLOOR_AREA.",
+        "allowed_calculation_types": ["AREA_RECTANGLE", "CUSTOM"],
+    }
 
 
 def test_calculate_measurement_api_returns_400_for_missing_inputs(client_with_measurement) -> None:

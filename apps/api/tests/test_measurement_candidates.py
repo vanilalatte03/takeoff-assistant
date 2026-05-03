@@ -121,7 +121,25 @@ def test_build_measurement_candidate_specs_from_room_finish_codes() -> None:
         ("FLOOR", "VCT", MeasurementType.FLOOR_AREA, "m2"),
         ("CEILING", "ACT", MeasurementType.CEILING_AREA, "m2"),
         ("WALL", "GWB", MeasurementType.WALL_AREA, "m2"),
+        ("PARTITION", "GWB", MeasurementType.PARTITION_AREA, "m2"),
         ("BASE", "RB", MeasurementType.PERIMETER_LENGTH, "m"),
+    ]
+    assert specs[3].status == ReviewStatus.NEEDS_REVIEW
+    assert specs[3].memo == "Verify actual partition type such as 5A, 3B, etc."
+
+
+def test_build_measurement_candidate_specs_does_not_create_partition_from_ceiling_gwb() -> None:
+    room_finish = RoomFinish(
+        project_id=1,
+        room_no="120",
+        room_name="CEILING GWB ONLY",
+        ceiling_finish="GWB",
+    )
+
+    specs = build_measurement_candidate_specs(room_finish)
+
+    assert [(spec.category, spec.measurement_type) for spec in specs] == [
+        ("CEILING", MeasurementType.CEILING_AREA),
     ]
 
 
@@ -133,25 +151,35 @@ def test_generate_measurement_candidates_from_room_finishes(client_with_db) -> N
     assert response.status_code == 200
     payload = response.json()
     assert payload["drawing_file_id"] == drawing_file_id
-    assert len(payload["measurements"]) == 6
+    assert len(payload["measurements"]) == 7
     assert [(row["room_no"], row["category"], row["finish_code"], row["measurement_type"]) for row in payload["measurements"]] == [
         ("110", "FLOOR", "VCT", "FLOOR_AREA"),
         ("110", "CEILING", "ACT", "CEILING_AREA"),
         ("110", "WALL", "GWB", "WALL_AREA"),
+        ("110", "PARTITION", "GWB", "PARTITION_AREA"),
         ("110", "BASE", "RB", "PERIMETER_LENGTH"),
         ("111", "FLOOR", "VCT", "FLOOR_AREA"),
         ("111", "CEILING", "ACT", "CEILING_AREA"),
     ]
-    assert all(row["status"] == ReviewStatus.DRAFT for row in payload["measurements"])
+    assert [row["status"] for row in payload["measurements"]] == [
+        ReviewStatus.DRAFT,
+        ReviewStatus.DRAFT,
+        ReviewStatus.DRAFT,
+        ReviewStatus.NEEDS_REVIEW,
+        ReviewStatus.DRAFT,
+        ReviewStatus.DRAFT,
+        ReviewStatus.DRAFT,
+    ]
+    assert payload["measurements"][3]["memo"] == "Verify actual partition type such as 5A, 3B, etc."
     assert all(row["quantity"] is None for row in payload["measurements"])
     assert all(row["formula"] is None for row in payload["measurements"])
     assert all(row["source_sheets"] == "AE401" for row in payload["measurements"])
     assert payload["measurements"][0]["unit"] == "m2"
-    assert payload["measurements"][3]["unit"] == "m"
+    assert payload["measurements"][4]["unit"] == "m"
 
     with session_factory() as session:
         measurements = session.query(Measurement).order_by(Measurement.id).all()
-        assert len(measurements) == 6
+        assert len(measurements) == 7
         assert measurements[0].room_no == "110"
         assert measurements[0].quantity is None
         assert measurements[0].status == ReviewStatus.DRAFT
@@ -166,10 +194,10 @@ def test_generate_measurement_candidates_is_idempotent(client_with_db) -> None:
 
     assert first_response.status_code == 200
     assert second_response.status_code == 200
-    assert len(first_response.json()["measurements"]) == 6
+    assert len(first_response.json()["measurements"]) == 7
     assert second_response.json()["measurements"] == []
     with session_factory() as session:
-        assert session.query(Measurement).count() == 6
+        assert session.query(Measurement).count() == 7
 
 
 def test_list_measurements_for_drawing_file(client_with_db) -> None:
@@ -180,7 +208,7 @@ def test_list_measurements_for_drawing_file(client_with_db) -> None:
     response = client.get(f"/drawing-files/{drawing_file_id}/measurements")
 
     assert response.status_code == 200
-    assert len(response.json()) == 6
+    assert len(response.json()) == 7
     assert response.json()[0]["room_no"] == "110"
 
 

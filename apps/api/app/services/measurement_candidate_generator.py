@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from collections.abc import Iterable
 
 from app.models import Measurement, MeasurementType, ReviewStatus, RoomFinish
@@ -12,6 +13,8 @@ class MeasurementCandidateSpec:
     measurement_type: MeasurementType
     finish_code: str
     unit: str
+    status: ReviewStatus = ReviewStatus.DRAFT
+    memo: str | None = None
 
 
 def build_measurement_candidate_specs(room_finish: RoomFinish) -> list[MeasurementCandidateSpec]:
@@ -43,6 +46,17 @@ def build_measurement_candidate_specs(room_finish: RoomFinish) -> list[Measureme
                 unit="m2",
             )
         )
+        if _contains_gwb(wall_code):
+            specs.append(
+                MeasurementCandidateSpec(
+                    category="PARTITION",
+                    measurement_type=MeasurementType.PARTITION_AREA,
+                    finish_code="GWB",
+                    unit="m2",
+                    status=ReviewStatus.NEEDS_REVIEW,
+                    memo="Verify actual partition type such as 5A, 3B, etc.",
+                )
+            )
     if base_code := _first_value(room_finish.base_finish, room_finish.base_material):
         specs.append(
             MeasurementCandidateSpec(
@@ -68,17 +82,18 @@ def build_measurement_candidate(room_finish: RoomFinish, spec: MeasurementCandid
         quantity=None,
         unit=spec.unit,
         source_sheets=_source_sheets(room_finish),
-        status=ReviewStatus.DRAFT,
+        status=spec.status,
+        memo=spec.memo,
     )
 
 
-def candidate_key(room_finish_id: int | None, spec: MeasurementCandidateSpec) -> tuple[int | None, MeasurementType, str]:
-    return (room_finish_id, spec.measurement_type, spec.finish_code)
+def candidate_key(room_finish_id: int | None, spec: MeasurementCandidateSpec) -> tuple[int | None, str, MeasurementType, str]:
+    return (room_finish_id, spec.category, spec.measurement_type, spec.finish_code)
 
 
-def existing_measurement_keys(measurements: Iterable[Measurement]) -> set[tuple[int | None, MeasurementType, str]]:
+def existing_measurement_keys(measurements: Iterable[Measurement]) -> set[tuple[int | None, str, MeasurementType, str]]:
     return {
-        (measurement.room_finish_id, measurement.measurement_type, measurement.finish_code)
+        (measurement.room_finish_id, measurement.category, measurement.measurement_type, measurement.finish_code)
         for measurement in measurements
     }
 
@@ -96,3 +111,7 @@ def _source_sheets(room_finish: RoomFinish) -> str:
     if room_finish.drawing_sheet and room_finish.drawing_sheet.sheet_no:
         return room_finish.drawing_sheet.sheet_no
     return ""
+
+
+def _contains_gwb(value: str) -> bool:
+    return re.search(r"\bGWB\b", value.upper()) is not None

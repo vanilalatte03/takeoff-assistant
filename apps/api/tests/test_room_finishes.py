@@ -157,6 +157,30 @@ def test_create_room_finish_allows_manual_input_after_failed_extraction(client_w
     assert payload["status"] == ReviewStatus.NEEDS_REVIEW
 
 
+def test_create_room_finish_for_drawing_file_derives_project_and_forces_review_status(client_with_db) -> None:
+    client, _, drawing_file_id, _ = client_with_db
+
+    response = client.post(
+        f"/drawing-files/{drawing_file_id}/room-finishes",
+        json={
+            "room_no": "101~106",
+            "room_name": "MULTI ROOM",
+            "floor_finish": "VCT-1",
+            "wall_finish": "GWB",
+            "ceiling_finish": "ACST-1",
+            "height": "2700",
+            "source_sheet_no": "AE601",
+            "status": "CONFIRMED",
+        },
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    assert payload["room_no"] == "101~106"
+    assert payload["status"] == ReviewStatus.NEEDS_REVIEW
+    assert payload["confidence"] is None
+
+
 def test_update_room_finish_allows_user_corrections(client_with_db) -> None:
     client, _, drawing_file_id, _ = client_with_db
     extract_response = client.post(f"/drawing-files/{drawing_file_id}/room-finishes/extract")

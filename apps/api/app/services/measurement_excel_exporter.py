@@ -63,6 +63,8 @@ def build_measurements_workbook(measurements: list[Measurement]) -> BytesIO:
 def _build_summary_rows(measurements: list[Measurement]) -> list[SummaryRow]:
     grouped: OrderedDict[tuple[str, str, str], SummaryRow] = OrderedDict()
     for measurement in measurements:
+        if measurement.quantity is None:
+            continue
         key = (
             measurement.category,
             measurement.finish_code,
@@ -78,7 +80,7 @@ def _build_summary_rows(measurements: list[Measurement]) -> list[SummaryRow]:
             )
 
         row = grouped[key]
-        row.total_quantity += measurement.quantity or Decimal("0.00")
+        row.total_quantity += measurement.quantity
         for source_sheet in _split_source_sheets(measurement.source_sheets):
             if source_sheet not in row.source_sheets:
                 row.source_sheets.append(source_sheet)
