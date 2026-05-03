@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { calculateMeasurement, updateMeasurement } from "../api/client";
-import type { CalculationType, Measurement, MeasurementCalculationInput } from "../types/api";
+import type { CalculationType, Measurement, MeasurementCalculationInput, MeasurementType } from "../types/api";
 import { ErrorMessage } from "./ApiState";
 import { StatusBadge } from "./StatusBadge";
 
@@ -26,6 +26,14 @@ type CalculationDraft = {
   deductions: DeductionDraft[];
 };
 
+type MetadataDraft = {
+  category: string;
+  finishCode: string;
+  measurementType: MeasurementType;
+  unit: string;
+  memo: string;
+};
+
 type PreviewResult =
   | {
       ready: true;
@@ -38,14 +46,14 @@ type PreviewResult =
       message: string;
     };
 
-const calculationTypes: CalculationType[] = [
-  "AREA_RECTANGLE",
-  "PERIMETER_RECTANGLE",
-  "WALL_AREA",
-  "PARTITION_AREA",
-  "COUNT",
-  "CUSTOM",
-];
+const allowedCalculationTypesByMeasurementType: Record<MeasurementType, CalculationType[]> = {
+  FLOOR_AREA: ["AREA_RECTANGLE", "CUSTOM"],
+  CEILING_AREA: ["AREA_RECTANGLE", "CUSTOM"],
+  PERIMETER_LENGTH: ["PERIMETER_RECTANGLE", "CUSTOM"],
+  WALL_AREA: ["WALL_AREA", "CUSTOM"],
+  PARTITION_AREA: ["PARTITION_AREA", "CUSTOM"],
+  COUNT: ["COUNT", "CUSTOM"],
+};
 
 const calculationTypeLabels: Record<CalculationType, string> = {
   AREA_RECTANGLE: "사각형 면적",
@@ -56,25 +64,22 @@ const calculationTypeLabels: Record<CalculationType, string> = {
   CUSTOM: "직접 입력",
 };
 
+const measurementTypes: MeasurementType[] = [
+  "FLOOR_AREA",
+  "CEILING_AREA",
+  "PERIMETER_LENGTH",
+  "WALL_AREA",
+  "PARTITION_AREA",
+  "COUNT",
+];
+
 interface MeasurementCalculationFormProps {
   measurement: Measurement | null;
   onSaved: (measurement: Measurement) => void;
 }
 
 function defaultCalculationType(measurement: Measurement): CalculationType {
-  if (measurement.measurement_type === "PERIMETER_LENGTH") {
-    return "PERIMETER_RECTANGLE";
-  }
-  if (measurement.measurement_type === "WALL_AREA") {
-    return "WALL_AREA";
-  }
-  if (measurement.measurement_type === "PARTITION_AREA") {
-    return "PARTITION_AREA";
-  }
-  if (measurement.measurement_type === "COUNT") {
-    return "COUNT";
-  }
-  return "AREA_RECTANGLE";
+  return allowedCalculationTypesByMeasurementType[measurement.measurement_type][0];
 }
 
 function createDraft(measurement: Measurement): CalculationDraft {
@@ -83,13 +88,23 @@ function createDraft(measurement: Measurement): CalculationDraft {
     width: "",
     height: "",
     length: "",
-    sideCount: measurement.measurement_type === "PARTITION_AREA" ? "2" : "1",
+    sideCount: "1",
     count: "",
     customFormula: measurement.formula ?? "",
     customQuantity: measurement.quantity === null ? "" : String(measurement.quantity),
     customUnit: measurement.unit ?? "",
     sourceSheets: measurement.source_sheets,
     deductions: [],
+  };
+}
+
+function createMetadataDraft(measurement: Measurement): MetadataDraft {
+  return {
+    category: measurement.category,
+    finishCode: measurement.finish_code,
+    measurementType: measurement.measurement_type,
+    unit: measurement.unit ?? "",
+    memo: measurement.memo ?? "",
   };
 }
 
@@ -305,13 +320,16 @@ function buildCalculationPayload(draft: CalculationDraft): MeasurementCalculatio
 
 export function MeasurementCalculationForm({ measurement, onSaved }: MeasurementCalculationFormProps) {
   const [draft, setDraft] = useState<CalculationDraft | null>(measurement ? createDraft(measurement) : null);
+  const [metadataDraft, setMetadataDraft] = useState<MetadataDraft | null>(measurement ? createMetadataDraft(measurement) : null);
   const [confirmAfterSave, setConfirmAfterSave] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingMetadata, setIsSavingMetadata] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
 
   useEffect(() => {
     setDraft(measurement ? createDraft(measurement) : null);
+    setMetadataDraft(measurement ? createMetadataDraft(measurement) : null);
     setConfirmAfterSave(false);
     setMessage(null);
     setError(null);
@@ -319,7 +337,7 @@ export function MeasurementCalculationForm({ measurement, onSaved }: Measurement
 
   const preview = useMemo(() => (draft ? computePreview(draft) : null), [draft]);
 
-  if (!measurement || !draft) {
+  if (!measurement || !draft || !metadataDraft) {
     return (
       <section className="panel calculation-panel">
         <h2>계산 입력</h2>
@@ -329,11 +347,63 @@ export function MeasurementCalculationForm({ measurement, onSaved }: Measurement
   }
   const currentMeasurement = measurement;
   const currentDraft = draft;
+  const currentMetadataDraft = metadataDraft;
+  const allowedCalculationTypes = allowedCalculationTypesByMeasurementType[currentMetadataDraft.measurementType];
 
   function updateDraft(patch: Partial<CalculationDraft>) {
     setDraft((current) => (current ? { ...current, ...patch } : current));
     setMessage(null);
     setError(null);
+  }
+
+  function updateMetadataDraft(patch: Partial<MetadataDraft>) {
+    setMetadataDraft((current) => (current ? { ...current, ...patch } : current));
+    setMessage(null);
+    setError(null);
+  }
+
+  function handleMeasurementTypeChange(nextType: MeasurementType) {
+    const nextAllowedTypes = allowedCalculationTypesByMeasurementType[nextType];
+    updateMetadataDraft({ measurementType: nextType });
+    if (!nextAllowedTypes.includes(currentDraft.calculationType)) {
+      updateDraft({
+        calculationType: nextAllowedTypes[0],
+        deductions: [],
+        sideCount: "1",
+      });
+    }
+  }
+
+  async function saveMetadataDraft() {
+    if (!currentMetadataDraft.category.trim()) {
+      throw new Error("Category를 입력해 주세요.");
+    }
+    if (!currentMetadataDraft.finishCode.trim()) {
+      throw new Error("Code를 입력해 주세요.");
+    }
+    const saved = await updateMeasurement(currentMeasurement.id, {
+      category: currentMetadataDraft.category.trim(),
+      finish_code: currentMetadataDraft.finishCode.trim(),
+      measurement_type: currentMetadataDraft.measurementType,
+      unit: currentMetadataDraft.unit.trim() || null,
+      memo: currentMetadataDraft.memo.trim() || null,
+    });
+    onSaved(saved);
+    return saved;
+  }
+
+  async function handleMetadataSave() {
+    setIsSavingMetadata(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const saved = await saveMetadataDraft();
+      setMessage(`Measurement ${saved.id} 후보 정보 저장 완료`);
+    } catch (caught) {
+      setError(caught);
+    } finally {
+      setIsSavingMetadata(false);
+    }
   }
 
   function updateDeduction(id: string, patch: Partial<DeductionDraft>) {
@@ -375,7 +445,8 @@ export function MeasurementCalculationForm({ measurement, onSaved }: Measurement
 
     setIsSaving(true);
     try {
-      const calculated = await calculateMeasurement(currentMeasurement.id, buildCalculationPayload(currentDraft));
+      const metadataSaved = await saveMetadataDraft();
+      const calculated = await calculateMeasurement(metadataSaved.id, buildCalculationPayload(currentDraft));
       const saved = confirmAfterSave ? await updateMeasurement(calculated.id, { status: "CONFIRMED" }) : calculated;
       onSaved(saved);
       setMessage(
@@ -407,6 +478,45 @@ export function MeasurementCalculationForm({ measurement, onSaved }: Measurement
         <StatusBadge status={currentMeasurement.status} />
       </div>
 
+      <div className="metadata-editor">
+        <div className="section-heading compact-heading">
+          <h3>후보 정보</h3>
+          <button type="button" className="button-secondary" disabled={isSavingMetadata || isSaving} onClick={handleMetadataSave}>
+            {isSavingMetadata ? "저장 중" : "후보 정보 저장"}
+          </button>
+        </div>
+        <div className="field-row two">
+          <label>
+            <span>Category</span>
+            <input value={currentMetadataDraft.category} onChange={(event) => updateMetadataDraft({ category: event.target.value })} />
+          </label>
+          <label>
+            <span>Code</span>
+            <input value={currentMetadataDraft.finishCode} onChange={(event) => updateMetadataDraft({ finishCode: event.target.value })} />
+          </label>
+        </div>
+        <div className="field-row two">
+          <label>
+            <span>Measurement Type</span>
+            <select value={currentMetadataDraft.measurementType} onChange={(event) => handleMeasurementTypeChange(event.target.value as MeasurementType)}>
+              {measurementTypes.map((type) => (
+                <option key={type} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Unit</span>
+            <input value={currentMetadataDraft.unit} onChange={(event) => updateMetadataDraft({ unit: event.target.value })} />
+          </label>
+        </div>
+        <label>
+          <span>Memo</span>
+          <input value={currentMetadataDraft.memo} onChange={(event) => updateMetadataDraft({ memo: event.target.value })} />
+        </label>
+      </div>
+
       <form className="calculation-form" onSubmit={handleSubmit}>
         <label>
           <span>Calculation Type</span>
@@ -419,7 +529,7 @@ export function MeasurementCalculationForm({ measurement, onSaved }: Measurement
               })
             }
           >
-            {calculationTypes.map((type) => (
+            {allowedCalculationTypes.map((type) => (
               <option key={type} value={type}>
                 {calculationTypeLabels[type]}
               </option>

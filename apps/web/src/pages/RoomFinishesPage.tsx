@@ -1,10 +1,10 @@
 import { FormEvent, useState } from "react";
 
-import { extractRoomFinishes, listRoomFinishes, updateRoomFinish } from "../api/client";
+import { createRoomFinishForDrawingFile, extractRoomFinishes, listRoomFinishes, updateRoomFinish } from "../api/client";
 import { EmptyState, ErrorMessage } from "../components/ApiState";
 import { PageHeader } from "../components/PageHeader";
 import { StatusBadge } from "../components/StatusBadge";
-import type { ReviewStatus, RoomFinish } from "../types/api";
+import type { ReviewStatus, RoomFinish, RoomFinishCreate } from "../types/api";
 
 const statuses: ReviewStatus[] = ["DRAFT", "NEEDS_REVIEW", "CONFIRMED", "REJECTED"];
 
@@ -20,11 +20,33 @@ function textValue(value: string | null) {
   return value ?? "";
 }
 
+function emptyDraft(): RoomFinishCreate {
+  return {
+    room_no: "",
+    room_name: "",
+    floor_finish: "",
+    base_finish: "",
+    wall_finish: "",
+    ceiling_finish: "",
+    height: "",
+    source_sheet_no: "",
+    remarks: "",
+  };
+}
+
+function normalizeDraft(draft: RoomFinishCreate): RoomFinishCreate {
+  return Object.fromEntries(
+    Object.entries(draft).map(([key, value]) => [key, typeof value === "string" && !value.trim() ? null : value]),
+  ) as RoomFinishCreate;
+}
+
 export function RoomFinishesPage() {
   const [drawingFileId, setDrawingFileId] = useState("");
   const [rows, setRows] = useState<RoomFinish[]>([]);
+  const [draft, setDraft] = useState<RoomFinishCreate>(emptyDraft);
   const [pendingRowId, setPendingRowId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
 
@@ -67,6 +89,30 @@ export function RoomFinishesPage() {
 
   function updateLocalRow(rowId: number, patch: Partial<RoomFinish>) {
     setRows((current) => current.map((row) => (row.id === rowId ? { ...row, ...patch } : row)));
+  }
+
+  function updateDraft(patch: Partial<RoomFinishCreate>) {
+    setDraft((current) => ({ ...current, ...patch }));
+    setMessage(null);
+    setError(null);
+  }
+
+  async function handleCreate(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsCreating(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const id = parseDrawingFileId(drawingFileId);
+      const saved = await createRoomFinishForDrawingFile(id, normalizeDraft(draft));
+      setRows((current) => [...current, saved]);
+      setDraft(emptyDraft());
+      setMessage(`Room ${saved.room_no ?? saved.id} 수동 추가 완료`);
+    } catch (caught) {
+      setError(caught);
+    } finally {
+      setIsCreating(false);
+    }
   }
 
   async function handleSave(row: RoomFinish) {
@@ -113,6 +159,54 @@ export function RoomFinishesPage() {
         </form>
         <ErrorMessage error={error} />
         {message ? <div className="message message-success">{message}</div> : null}
+      </section>
+
+      <section className="panel">
+        <div className="section-heading">
+          <h2>새 Room Finish 추가</h2>
+          <span className="count-label">자동 추출 실패 시 수동 입력</span>
+        </div>
+        <form className="room-finish-create-grid" onSubmit={handleCreate}>
+          <label>
+            <span>Room No</span>
+            <input value={draft.room_no ?? ""} onChange={(event) => updateDraft({ room_no: event.target.value })} />
+          </label>
+          <label>
+            <span>Room Name</span>
+            <input value={draft.room_name ?? ""} onChange={(event) => updateDraft({ room_name: event.target.value })} />
+          </label>
+          <label>
+            <span>Floor</span>
+            <input value={draft.floor_finish ?? ""} onChange={(event) => updateDraft({ floor_finish: event.target.value })} />
+          </label>
+          <label>
+            <span>Base</span>
+            <input value={draft.base_finish ?? ""} onChange={(event) => updateDraft({ base_finish: event.target.value })} />
+          </label>
+          <label>
+            <span>Wall</span>
+            <input value={draft.wall_finish ?? ""} onChange={(event) => updateDraft({ wall_finish: event.target.value })} />
+          </label>
+          <label>
+            <span>Ceiling</span>
+            <input value={draft.ceiling_finish ?? ""} onChange={(event) => updateDraft({ ceiling_finish: event.target.value })} />
+          </label>
+          <label>
+            <span>Height</span>
+            <input value={draft.height ?? ""} onChange={(event) => updateDraft({ height: event.target.value })} />
+          </label>
+          <label>
+            <span>Source Sheet</span>
+            <input value={draft.source_sheet_no ?? ""} placeholder="AE601" onChange={(event) => updateDraft({ source_sheet_no: event.target.value })} />
+          </label>
+          <label className="wide-field">
+            <span>Remarks</span>
+            <input value={draft.remarks ?? ""} onChange={(event) => updateDraft({ remarks: event.target.value })} />
+          </label>
+          <button type="submit" disabled={isCreating || isLoading}>
+            {isCreating ? "추가 중" : "수동 추가"}
+          </button>
+        </form>
       </section>
 
       <section className="panel">

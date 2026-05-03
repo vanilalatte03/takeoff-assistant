@@ -10,6 +10,7 @@ import type {
   MeasurementGenerationResult,
   MeasurementUpdate,
   RoomFinish,
+  RoomFinishCreate,
   RoomFinishExtractionResult,
   RoomFinishUpdate,
 } from "../types/api";
@@ -131,6 +132,13 @@ export function extractRoomFinishes(drawingFileId: number) {
 
 export function listRoomFinishes(drawingFileId: number) {
   return requestJson<RoomFinish[]>(`/drawing-files/${drawingFileId}/room-finishes`);
+}
+
+export function createRoomFinishForDrawingFile(drawingFileId: number, payload: RoomFinishCreate) {
+  return requestJson<RoomFinish>(`/drawing-files/${drawingFileId}/room-finishes`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 }
 
 export function updateRoomFinish(roomFinishId: number, payload: RoomFinishUpdate) {

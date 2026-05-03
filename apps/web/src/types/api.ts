@@ -122,6 +122,28 @@ export type RoomFinishUpdate = Partial<
   >
 >;
 
+export type RoomFinishCreate = Partial<
+  Pick<
+    RoomFinish,
+    | "drawing_sheet_id"
+    | "room_no"
+    | "room_name"
+    | "floor_material"
+    | "floor_finish"
+    | "base_material"
+    | "base_finish"
+    | "wall_material"
+    | "wall_finish"
+    | "ceiling_material"
+    | "ceiling_finish"
+    | "height"
+    | "remarks"
+    | "source_sheet_no"
+    | "confidence"
+    | "status"
+  >
+>;
+
 export interface RoomFinishExtractionResult {
   drawing_file_id: number;
   room_finishes: RoomFinish[];
@@ -154,6 +176,9 @@ export interface MeasurementGenerationResult {
 }
 
 export interface MeasurementUpdate {
+  category?: string | null;
+  finish_code?: string | null;
+  measurement_type?: MeasurementType | null;
   formula?: string | null;
   quantity?: number | string | null;
   unit?: string | null;

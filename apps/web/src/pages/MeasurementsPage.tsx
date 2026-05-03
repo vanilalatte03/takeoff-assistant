@@ -5,7 +5,18 @@ import { EmptyState, ErrorMessage } from "../components/ApiState";
 import { MeasurementCalculationForm } from "../components/MeasurementCalculationForm";
 import { PageHeader } from "../components/PageHeader";
 import { StatusBadge } from "../components/StatusBadge";
-import type { Measurement } from "../types/api";
+import type { Measurement, MeasurementType, ReviewStatus } from "../types/api";
+
+const measurementTypeOptions: Array<MeasurementType | ""> = [
+  "",
+  "FLOOR_AREA",
+  "CEILING_AREA",
+  "PERIMETER_LENGTH",
+  "WALL_AREA",
+  "PARTITION_AREA",
+  "COUNT",
+];
+const statusOptions: Array<ReviewStatus | ""> = ["", "DRAFT", "NEEDS_REVIEW", "CONFIRMED", "REJECTED"];
 
 function parseDrawingFileId(value: string) {
   const parsed = Number(value);
@@ -34,10 +45,27 @@ export function MeasurementsPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [selectedMeasurementId, setSelectedMeasurementId] = useState<number | null>(null);
+  const [roomNoFilter, setRoomNoFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [codeFilter, setCodeFilter] = useState("");
+  const [measurementTypeFilter, setMeasurementTypeFilter] = useState<MeasurementType | "">("");
+  const [statusFilter, setStatusFilter] = useState<ReviewStatus | "">("");
 
   const selectedMeasurement = useMemo(
     () => rows.find((row) => row.id === selectedMeasurementId) ?? null,
     [rows, selectedMeasurementId],
+  );
+  const filteredRows = useMemo(
+    () =>
+      rows.filter((row) => {
+        const roomNoMatches = !roomNoFilter.trim() || (row.room_no ?? "").toUpperCase().includes(roomNoFilter.trim().toUpperCase());
+        const categoryMatches = !categoryFilter.trim() || row.category.toUpperCase().includes(categoryFilter.trim().toUpperCase());
+        const codeMatches = !codeFilter.trim() || row.finish_code.toUpperCase().includes(codeFilter.trim().toUpperCase());
+        const typeMatches = !measurementTypeFilter || row.measurement_type === measurementTypeFilter;
+        const statusMatches = !statusFilter || row.status === statusFilter;
+        return roomNoMatches && categoryMatches && codeMatches && typeMatches && statusMatches;
+      }),
+    [categoryFilter, codeFilter, measurementTypeFilter, roomNoFilter, rows, statusFilter],
   );
 
   async function loadRows(id: number) {
@@ -138,9 +166,45 @@ export function MeasurementsPage() {
       <section className="panel">
         <div className="section-heading">
           <h2>Measurements</h2>
-          <span className="count-label">{rows.length}건</span>
+          <span className="count-label">
+            {filteredRows.length} / {rows.length}건
+          </span>
         </div>
-        {rows.length ? (
+        <div className="measurement-filter-grid">
+          <label>
+            <span>Room No</span>
+            <input value={roomNoFilter} placeholder="119" onChange={(event) => setRoomNoFilter(event.target.value)} />
+          </label>
+          <label>
+            <span>Category</span>
+            <input value={categoryFilter} placeholder="PARTITION" onChange={(event) => setCategoryFilter(event.target.value)} />
+          </label>
+          <label>
+            <span>Code</span>
+            <input value={codeFilter} placeholder="GWB or 5A" onChange={(event) => setCodeFilter(event.target.value)} />
+          </label>
+          <label>
+            <span>Type</span>
+            <select value={measurementTypeFilter} onChange={(event) => setMeasurementTypeFilter(event.target.value as MeasurementType | "")}>
+              {measurementTypeOptions.map((type) => (
+                <option key={type || "ALL"} value={type}>
+                  {type || "전체"}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Status</span>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as ReviewStatus | "")}>
+              {statusOptions.map((status) => (
+                <option key={status || "ALL"} value={status}>
+                  {status || "전체"}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        {filteredRows.length ? (
           <div className="table-wrap wide">
             <table>
               <thead>
@@ -158,7 +222,7 @@ export function MeasurementsPage() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => (
+                {filteredRows.map((row) => (
                   <tr
                     key={row.id}
                     className={selectedMeasurementId === row.id ? "selected-row" : undefined}
@@ -196,7 +260,7 @@ export function MeasurementsPage() {
             </table>
           </div>
         ) : (
-          <EmptyState>조회된 Measurement가 없습니다.</EmptyState>
+          <EmptyState>{rows.length ? "필터 조건에 맞는 Measurement가 없습니다." : "조회된 Measurement가 없습니다."}</EmptyState>
         )}
       </section>
     </>

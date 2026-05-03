@@ -226,6 +226,25 @@ a:hover {
   justify-content: start;
 }
 
+.room-finish-create-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(130px, 1fr)) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.room-finish-create-grid .wide-field {
+  grid-column: span 2;
+}
+
+.measurement-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(130px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+  align-items: end;
+}
+
 label {
   display: grid;
   gap: 7px;
@@ -608,6 +627,7 @@ td select {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.metadata-editor,
 .deduction-editor {
   display: grid;
   gap: 10px;
@@ -709,6 +729,8 @@ td select {
   .form-grid,
   .toolbar-form,
   .toolbar-form.compact,
+  .room-finish-create-grid,
+  .measurement-filter-grid,
   .field-row.two,
   .deduction-row,
   .metadata-grid,
