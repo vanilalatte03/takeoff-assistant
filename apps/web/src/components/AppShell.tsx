@@ -1,0 +1,34 @@
+import { NavLink, Outlet } from "react-router-dom";
+
+const navItems = [
+  { to: "/upload", label: "PDF 업로드" },
+  { to: "/drawings", label: "도면 목록/검색" },
+  { to: "/room-finishes", label: "Room Finish" },
+  { to: "/measurements", label: "Measurement" },
+];
+
+export function AppShell() {
+  return (
+    <div className="app-shell">
+      <aside className="sidebar" aria-label="주요 메뉴">
+        <div className="brand">
+          <span className="brand-mark">TA</span>
+          <div>
+            <strong>Takeoff Assistant</strong>
+            <span>MVP</span>
+          </div>
+        </div>
+        <nav className="nav-list">
+          {navItems.map((item) => (
+            <NavLink key={item.to} to={item.to} className={({ isActive }) => (isActive ? "active" : undefined)}>
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+      </aside>
+      <main className="main-content">
+        <Outlet />
+      </main>
+    </div>
+  );
+}
