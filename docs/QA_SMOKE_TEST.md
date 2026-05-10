@@ -1,4 +1,4 @@
-# MANUAL_TEST_SCENARIO.md
+# QA_SMOKE_TEST.md
 
 ## 목적
 
@@ -8,7 +8,7 @@
 
 ```text
 PDF 업로드 -> 도면 목록/검색 -> 마감표 후보 확인/수정 -> Measurement 후보 생성
--> 직접 치수 입력/계산 -> CONFIRMED 처리 -> Excel Summary/Details 확인
+-> 직접 치수 입력/계산 -> CONFIRMED 처리 -> Excel 요약/상세 확인
 ```
 
 ## 사전 준비
@@ -33,7 +33,7 @@ Drawing File ID:
   - 마감표:
   - 기타:
 최종 Excel 파일명:
-전체 판정: PASS / FAIL
+전체 판정: 통과 / 실패
 ```
 
 ## 1. PDF 업로드
@@ -244,9 +244,9 @@ height: 2.7
 ### 기대 결과
 
 ```text
-Formula: 4.2 * 2.7
-Quantity: 11.34
-Unit: m2
+계산식: 4.2 * 2.7
+수량: 11.34
+단위: m2
 ```
 
 ### 체크
@@ -279,9 +279,9 @@ deduction label: opening
 ### 기대 결과
 
 ```text
-Formula: (4.2 + 2.7) * 2 - 0.8
-Quantity: 13.00
-Unit: m
+계산식: (4.2 + 2.7) * 2 - 0.8
+수량: 13.00
+단위: m
 ```
 
 ### 체크
@@ -313,9 +313,9 @@ deduction label: door
 ### 기대 결과
 
 ```text
-Formula: 4.2 * 4.6 - 0.9 * 2.1
-Quantity: 17.43
-Unit: m2
+계산식: 4.2 * 4.6 - 0.9 * 2.1
+수량: 17.43
+단위: m2
 ```
 
 ### 체크
@@ -345,9 +345,9 @@ side_count: 2
 ### 기대 결과
 
 ```text
-Formula: 4.2 * 4.6 * 2
-Quantity: 38.64
-Unit: m2
+계산식: 4.2 * 4.6 * 2
+수량: 38.64
+단위: m2
 ```
 
 ### 체크
@@ -433,7 +433,7 @@ Memo
 
 ## 최종 판정 기준
 
-PASS로 볼 수 있는 기준:
+통과로 볼 수 있는 기준:
 
 - 샘플 PDF 업로드부터 Excel 다운로드까지 중단 없이 진행된다.
 - 마감표 후보가 완벽하지 않아도 사용자가 수정할 수 있다.
@@ -444,7 +444,7 @@ PASS로 볼 수 있는 기준:
 - Excel Summary에서 마감 코드별 합계를 볼 수 있다.
 - Excel Details에서 Room별 계산식과 도면 출처를 추적할 수 있다.
 
-FAIL로 봐야 하는 기준:
+실패로 봐야 하는 기준:
 
 - PDF 업로드가 되지 않는다.
 - 도면 이미지 또는 텍스트 처리가 전혀 되지 않는다.

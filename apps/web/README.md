@@ -1,6 +1,14 @@
 # Takeoff Assistant Web
 
-React + TypeScript frontend skeleton for the PDF drawing finish takeoff assistant MVP.
+React + TypeScript frontend for the PDF drawing finish takeoff assistant.
+
+## Current Screens
+
+- PDF upload and processing controls
+- Drawing sheet list/search and page detail viewer
+- Rendered PDF page viewer with manual scale, length, rectangle area, and polygon area measurement
+- Room Finish review table with manual add/edit flow
+- Measurement list, calculation input panel, status confirmation, filtering, and Excel download
 
 ## Development
 
@@ -10,4 +18,4 @@ npm run build
 npm run dev
 ```
 
-The current UI is only a minimal starting screen. Workflow pages will be added task by task.
+The Vite dev server proxies `/api` to `http://localhost:8000`. Start the API server before testing integrated workflows.

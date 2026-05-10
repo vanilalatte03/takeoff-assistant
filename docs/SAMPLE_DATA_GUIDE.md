@@ -1,17 +1,17 @@
 # SAMPLE_DATA_GUIDE.md
 
-## Where to put sample files
+## 샘플 파일 위치
 
-Place sample PDFs under:
+샘플 PDF는 다음 위치에 둡니다.
 
 ```text
 data/samples/
 ```
 
-Do not commit confidential, client-owned, government, or proprietary drawings to a public repository.
-Use a private repository or keep sample PDFs out of git.
+기밀, client-owned, government, proprietary drawing을 공개 저장소에 커밋하지 마세요.
+Private repository를 사용하거나 sample PDF를 git 밖에 두세요.
 
-Suggested `.gitignore` entry:
+권장 `.gitignore` 항목:
 
 ```text
 data/samples/*.pdf
@@ -19,19 +19,19 @@ data/uploads/
 exports/
 ```
 
-## First sample goals
+## 첫 샘플 목표
 
-For the first architectural PDF sample, verify:
+첫 번째 architectural PDF sample에서는 다음을 확인합니다.
 
-1. Index/schedule of drawings is detected.
-2. Sheet numbers and sheet titles are detected.
-3. Architectural pages can be found, especially floor plan, partition plan/detail, and finish schedule pages.
-4. Finish schedule text produces editable RoomFinish rows.
-5. User can create measurement rows even if extraction is imperfect.
+1. Index/schedule of drawings가 감지된다.
+2. Sheet number와 sheet title이 감지된다.
+3. 특히 floor plan, partition plan/detail, finish schedule page 같은 architectural page를 찾을 수 있다.
+4. Finish schedule text가 수정 가능한 `RoomFinish` row를 만든다.
+5. Extraction이 불완전해도 사용자가 measurement row를 만들 수 있다.
 
-## Example expected architectural sheets
+## 예상 architectural sheet 예시
 
-The sample drawing set may contain sheets similar to:
+샘플 drawing set에는 다음과 유사한 sheet가 있을 수 있습니다.
 
 ```text
 AE101 NEW FLOOR PLAN
@@ -44,7 +44,7 @@ AE402 INTR / EXT FINISH SCHEDULE
 AE405 DOOR / WINDOW SCHEDULE
 ```
 
-A different PDF may use:
+다른 PDF는 다음을 사용할 수 있습니다.
 
 ```text
 AE101 FLOOR PLAN
@@ -56,11 +56,11 @@ AE605 DOOR/WINDOW AND LOUVER NUMBERING PLAN
 AE606 DOOR SCHEDULE
 ```
 
-The program must detect by role/title, not fixed sheet number.
+프로그램은 고정 sheet number가 아니라 role/title로 감지해야 합니다.
 
-## Manual validation example
+## 수동 검증 예시
 
-Create a measurement row:
+Measurement row를 생성합니다.
 
 ```text
 room_no: 110
@@ -73,4 +73,3 @@ quantity: 11.34
 unit: m2
 status: CONFIRMED
 ```
-

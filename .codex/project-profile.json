@@ -1,0 +1,29 @@
+{
+  "projectName": "takeoff-assistant",
+  "profile": "mixed",
+  "guardMode": "soft",
+  "commands": {
+    "dev": [
+      "cd apps/api && .\\.venv311\\Scripts\\python.exe -m uvicorn app.main:app --reload",
+      "cd apps/web && npm run dev"
+    ],
+    "lint": [],
+    "test": [
+      "cd apps/api && .\\.venv311\\Scripts\\python.exe -m pytest",
+      ".\\apps\\api\\.venv311\\Scripts\\python.exe -m pytest scripts"
+    ],
+    "build": [
+      "cd apps/web && npm run build"
+    ],
+    "review": [
+      ".\\apps\\api\\.venv311\\Scripts\\python.exe scripts\\doctor.py"
+    ]
+  },
+  "sourceRoots": [
+    "apps/api/app",
+    "apps/web/src"
+  ],
+  "testRoots": [
+    "apps/api/tests"
+  ]
+}
