@@ -544,6 +544,34 @@ class TestProgressIndicator:
         assert pi.elapsed > 0
 
 
+class TestExecuteSingleStep:
+    def test_reports_elapsed_after_progress_context_exits(self, executor, capsys):
+        class FakeProgress:
+            def __enter__(self):
+                self.info = MagicMock(elapsed=0.0)
+                return self.info
+
+            def __exit__(self, exc_type, exc, tb):
+                self.info.elapsed = 7.4
+
+        def complete_step(step, preamble):
+            index = ex.StepExecutor._read_json(executor._index_file)
+            for item in index["steps"]:
+                if item["step"] == step["step"]:
+                    item["status"] = "completed"
+                    item["summary"] = "done"
+            ex.StepExecutor._write_json(executor._index_file, index)
+            return {}
+
+        executor._invoke_codex = complete_step
+        executor._commit_step = lambda step_num, step_name: None
+
+        with patch.object(ex, "progress_indicator", lambda label: FakeProgress()):
+            executor._execute_single_step({"step": 2, "name": "ui"}, "", "")
+
+        assert "[7s]" in capsys.readouterr().out
+
+
 # ---------------------------------------------------------------------------
 # main() CLI 파싱 (mocked)
 # ---------------------------------------------------------------------------

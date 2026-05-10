@@ -12,7 +12,7 @@
 | install-api | `cd apps/api && .\.venv311\Scripts\python.exe -m pip install -e ".[dev]"` | no | backend runtime/test dependency 설치 |
 | install-web | `cd apps/web && npm install` | no | frontend dependency 설치 |
 | test | `cd apps/api && .\.venv311\Scripts\python.exe -m pytest` | yes | backend test 실행 |
-| test-harness | `.\apps\api\.venv311\Scripts\python.exe -m pytest scripts` | no | repository harness script test 실행 |
+| test-harness | `.\apps\api\.venv311\Scripts\python.exe -m pytest scripts` | yes | repository harness script test 실행 |
 | build | `cd apps/web && npm run build` | yes | frontend type-check 및 build 실행 |
 | review | `.\apps\api\.venv311\Scripts\python.exe scripts\doctor.py` | no | Codex template 준비 상태 점검 |
 | check | `.\apps\api\.venv311\Scripts\python.exe scripts\checks.py --stage manual` | no | 설정된 lint/test/build check 실행 |

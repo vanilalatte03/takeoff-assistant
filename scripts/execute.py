@@ -340,7 +340,7 @@ class StepExecutor:
 
             with progress_indicator(tag) as pi:
                 self._invoke_codex(step, preamble)
-                elapsed = int(pi.elapsed)
+            elapsed = int(pi.elapsed)
 
             index = self._read_json(self._index_file)
             status = next((s.get("status", "pending") for s in index["steps"] if s["step"] == step_num), "pending")

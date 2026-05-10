@@ -17,6 +17,26 @@ def test_dangerous_command_blocks_pretool(capsys):
     assert "hard resets" in output["reason"]
 
 
+def test_powershell_recursive_force_delete_blocks(capsys):
+    payload = {"tool_input": {"command": "Remove-Item -LiteralPath data -Recurse -Force"}}
+
+    guard.handle_policy("pre-tool-use", payload)
+
+    output = json.loads(capsys.readouterr().out)
+    assert output["decision"] == "block"
+    assert "recursive forced removal" in output["reason"]
+
+
+def test_powershell_remove_alias_recursive_force_blocks(capsys):
+    payload = {"tool_input": {"command": "rm data -Recurse -Force"}}
+
+    guard.handle_policy("pre-tool-use", payload)
+
+    output = json.loads(capsys.readouterr().out)
+    assert output["decision"] == "block"
+    assert "recursive forced removal" in output["reason"]
+
+
 def test_soft_tdd_missing_test_warns_without_block(tmp_path, capsys):
     payload = {"tool_input": {"path": "src/service.py"}}
     with patch.object(guard, "ROOT", tmp_path):

@@ -55,6 +55,9 @@ DANGEROUS_RULES = [
     (re.compile(r"\bDROP\s+TABLE\b", re.IGNORECASE), "DROP TABLE statements are blocked"),
     (re.compile(r"\b(?:curl|wget)\b[^\n;&|]*\|\s*(?:sh|bash)\b"), "curl/wget piped to a shell is blocked"),
 ]
+DELETE_COMMAND = re.compile(r"\b(?:Remove-Item|rm|ri|del|erase|rmdir|rd)\b([^\n;&|]*)", re.IGNORECASE)
+RECURSIVE_FLAG = re.compile(r"(?:^|\s)(?:-Recurse|-r|/s)(?:\s|$)", re.IGNORECASE)
+FORCE_FLAG = re.compile(r"(?:^|\s)(?:-Force|-fo|/q)(?:\s|$)", re.IGNORECASE)
 
 
 def _print_json(data: dict):
@@ -78,6 +81,10 @@ def _command_from_payload(payload: dict) -> str:
 
 
 def _danger_reason(command: str) -> str | None:
+    for match in DELETE_COMMAND.finditer(command):
+        args = match.group(1)
+        if RECURSIVE_FLAG.search(args) and FORCE_FLAG.search(args):
+            return f"recursive forced removal is blocked: {command.strip()}"
     for pattern, message in DANGEROUS_RULES:
         if pattern.search(command):
             return f"{message}: {command.strip()}"
