@@ -10,12 +10,15 @@ from app.schemas.drawing import (
     DrawingSheetSearchResult,
 )
 from app.schemas.measurement import (
+    DrawingFileRoomStatusResponse,
     MeasurementCalculationInput,
     MeasurementCreate,
     MeasurementDeductionInput,
     MeasurementGenerationResult,
+    MeasurementMergeRequest,
     MeasurementRead,
     MeasurementUpdate,
+    RoomMeasurementStatus,
 )
 from app.schemas.project import ProjectCreate, ProjectRead
 from app.schemas.room_finish import (
@@ -36,12 +39,15 @@ __all__ = [
     "DrawingSheetRead",
     "DrawingSheetSearchResponse",
     "DrawingSheetSearchResult",
+    "DrawingFileRoomStatusResponse",
     "MeasurementCalculationInput",
     "MeasurementCreate",
     "MeasurementDeductionInput",
     "MeasurementGenerationResult",
+    "MeasurementMergeRequest",
     "MeasurementRead",
     "MeasurementUpdate",
+    "RoomMeasurementStatus",
     "ProjectCreate",
     "ProjectRead",
     "RoomFinishCreate",

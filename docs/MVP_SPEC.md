@@ -6,6 +6,8 @@
 
 현재 MVP의 목표는 PDF 도면 세트를 업로드한 뒤, 도면 검색과 마감 산출 후보 생성, 직접 치수 입력/수동 측정, 계산, Excel export까지 이어지는 검수 가능한 흐름을 제공하는 것입니다.
 
+다음 작업 단위는 `docs/REVIEW_MVP_SPEC.md`의 **2차 실제 업무 검수형 MVP**입니다. 2차는 AI 도입이 아니라 Project 선택/생성, RoomFinish 검수 개선, Measurement reject/merge, 방별 상태, count click, Review sheet export를 보강합니다.
+
 ## 사용자
 
 PDF 도면 세트와 Excel로 건축 마감 산출을 수행하는 단일 개인 사용자입니다.
@@ -112,8 +114,8 @@ RoomFinish row에서 draft Measurement 후보를 생성합니다.
 
 Excel export는 두 worksheet를 만듭니다.
 
-- `Summary`: category, finish_code, unit 기준 합계
-- `Details`: room, category, code, formula, quantity, unit, source_sheets, status, memo
+- `Summary`: category, finish_code, description, unit, total_quantity, source_sheets
+- `Details`: no, room_no, room_name, category, finish_code, measurement_type, formula, quantity, unit, source_sheets, status, memo
 
 ## 현재 구현상 남은 MVP 보강점
 
@@ -124,6 +126,20 @@ Excel export는 두 worksheet를 만듭니다.
 - page image 위 count click 측정
 - 추출 실패가 빈 결과로 끝날 때 사용자에게 더 명확한 `NEEDS_REVIEW` 작업 단서 제공
 - 실제 아버님 샘플 PDF 기준 end-to-end 수동 smoke test 반복
+
+## 다음 MVP: 2차 검수형 MVP
+
+2차 MVP는 1차 흐름을 실제 업무 검수에 맞게 다듬는 범위입니다. 상세 스펙은 `docs/REVIEW_MVP_SPEC.md`를 기준으로 합니다.
+
+- 업로드 전 Project 선택/생성
+- RoomFinish 필터, 빠른 저장, `REJECTED` 처리
+- Measurement 수정, `REJECTED` 처리, 제한된 병합
+- `CONFIRMED` row 보호
+- 방별 계산 상태 표시
+- 도면 위 count click 측정
+- 기존 Summary/Details에 검수용 Review sheet 추가
+
+2차 MVP에서도 AI API, 자동 치수선 판독, 자동 방 경계 인식은 제외합니다.
 
 ## MVP 제외 범위
 

@@ -56,6 +56,26 @@ class MeasurementGenerationResult(BaseModel):
     measurements: list[MeasurementRead]
 
 
+class MeasurementMergeRequest(BaseModel):
+    target_id: int
+    source_ids: list[int]
+
+
+class RoomMeasurementStatus(BaseModel):
+    room_no: str | None = None
+    room_name: str | None = None
+    total_count: int
+    quantity_count: int
+    confirmed_count: int
+    needs_review_count: int
+    missing_quantity_count: int
+
+
+class DrawingFileRoomStatusResponse(BaseModel):
+    drawing_file_id: int
+    rooms: list[RoomMeasurementStatus]
+
+
 class MeasurementDeductionInput(BaseModel):
     amount: Decimal
     label: str | None = None

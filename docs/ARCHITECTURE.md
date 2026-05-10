@@ -61,6 +61,23 @@ PDF upload
 - Review state: `DRAFT`, `NEEDS_REVIEW`, `CONFIRMED`, `REJECTED`
 - Migration: 아직 migration framework는 없으며, MVP test는 schema를 직접 초기화합니다.
 
+## Measurement 저장 계약
+모든 계산된 수량은 다음 정보를 추적 가능하게 저장해야 합니다.
+
+- project_id
+- room_no, room_name
+- category
+- finish_code
+- measurement_type
+- formula
+- quantity
+- unit
+- source_sheets
+- status
+- memo
+- coordinates_json, 도면 위에서 측정한 경우
+- deductions_json, 공제를 적용한 경우
+
 ## 오류 처리
 - 유효하지 않은 PDF upload는 HTTP 400을 반환합니다.
 - 누락된 record 또는 rendered file은 HTTP 404를 반환합니다.

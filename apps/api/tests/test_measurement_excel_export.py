@@ -112,6 +112,21 @@ def client_with_export_data(tmp_path) -> Generator[tuple[TestClient, int], None,
                     status=ReviewStatus.NEEDS_REVIEW,
                     memo="needs manual measurement",
                 ),
+                Measurement(
+                    project_id=project.id,
+                    room_finish_id=room_111.id,
+                    room_no="111",
+                    room_name="STORAGE",
+                    category="FLOOR",
+                    finish_code="BAD",
+                    measurement_type=MeasurementType.FLOOR_AREA,
+                    formula=None,
+                    quantity=None,
+                    unit="m2",
+                    source_sheets="AE402",
+                    status=ReviewStatus.REJECTED,
+                    memo="rejected duplicate",
+                ),
             ]
         )
         session.commit()
@@ -141,7 +156,7 @@ def test_measurement_export_contains_summary_and_details(client_with_export_data
     assert "finish_takeoff_drawing_file_" in response.headers["content-disposition"]
 
     workbook = load_workbook(BytesIO(response.content), data_only=True)
-    assert workbook.sheetnames == ["Summary", "Details"]
+    assert workbook.sheetnames == ["Summary", "Details", "Review"]
 
     summary_sheet = workbook["Summary"]
     assert [summary_sheet.cell(1, column).value for column in range(1, 6)] == [
@@ -188,6 +203,24 @@ def test_measurement_export_contains_summary_and_details(client_with_export_data
     ]
     assert details_sheet["G2"].number_format == "0.00"
     assert details_sheet["G4"].value is None
+
+    review_sheet = workbook["Review"]
+    assert [review_sheet.cell(1, column).value for column in range(1, 11)] == [
+        "Drawing No",
+        "Room No",
+        "Room Name",
+        "Category",
+        "Code",
+        "Formula",
+        "Quantity",
+        "Unit",
+        "Status",
+        "Memo",
+    ]
+    assert [review_sheet.cell(row, 5).value for row in range(2, review_sheet.max_row + 1)] == ["VCT", "GWB", "VCT"]
+    assert "REJECTED" not in [review_sheet.cell(row, 9).value for row in range(2, review_sheet.max_row + 1)]
+    assert review_sheet["H2"].value == "m²"
+    assert review_sheet["G2"].number_format == "0.00"
 
 
 def test_measurement_export_requires_existing_drawing_file(client_with_export_data) -> None:

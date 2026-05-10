@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.db.init_db import init_db
 from app.db.session import get_db
 from app.main import app
-from app.models import Measurement, MeasurementType, Project, ReviewStatus
+from app.models import DrawingFile, DrawingSheet, Measurement, MeasurementType, Project, ReviewStatus, RoomFinish
 from app.services.measurement_excel_exporter import build_measurements_workbook
 
 
@@ -162,3 +162,189 @@ def test_update_measurement_api_requires_existing_measurement(client_with_measur
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Measurement not found."
+
+
+def test_reject_measurement_marks_unconfirmed_row_rejected(client_with_measurement) -> None:
+    client, session_factory, measurement_id = client_with_measurement
+
+    response = client.delete(f"/measurements/{measurement_id}")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == ReviewStatus.REJECTED
+    with session_factory() as session:
+        measurement = session.get(Measurement, measurement_id)
+        assert measurement is not None
+        assert measurement.status == ReviewStatus.REJECTED
+
+
+def test_reject_measurement_blocks_confirmed_row(client_with_measurement) -> None:
+    client, session_factory, measurement_id = client_with_measurement
+    with session_factory() as session:
+        measurement = session.get(Measurement, measurement_id)
+        assert measurement is not None
+        measurement.status = ReviewStatus.CONFIRMED
+        session.commit()
+
+    response = client.delete(f"/measurements/{measurement_id}")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "Confirmed measurements cannot be rejected."
+
+
+def test_merge_measurements_sums_quantity_and_rejects_sources(client_with_measurement) -> None:
+    client, session_factory, measurement_id = client_with_measurement
+    with session_factory() as session:
+        target = session.get(Measurement, measurement_id)
+        assert target is not None
+        target.quantity = Decimal("10.25")
+        target.formula = "5 * 2.05"
+        target.unit = "m2"
+        target.source_sheets = "AE101"
+        target.memo = "target memo"
+        source = Measurement(
+            project_id=target.project_id,
+            room_no=target.room_no,
+            room_name=target.room_name,
+            category=target.category,
+            finish_code=target.finish_code,
+            measurement_type=target.measurement_type,
+            formula="2 * 3",
+            quantity=Decimal("6.00"),
+            unit="m2",
+            source_sheets="AE102",
+            status=ReviewStatus.NEEDS_REVIEW,
+            memo="source memo",
+        )
+        session.add(source)
+        session.commit()
+        source_id = source.id
+
+    response = client.post("/measurements/merge", json={"target_id": measurement_id, "source_ids": [source_id]})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert Decimal(str(payload["quantity"])) == Decimal("16.25")
+    assert payload["source_sheets"] == "AE101, AE102"
+    assert "#%s: 5 * 2.05" % measurement_id in payload["formula"]
+    with session_factory() as session:
+        source = session.get(Measurement, source_id)
+        assert source is not None
+        assert source.status == ReviewStatus.REJECTED
+
+
+def test_merge_measurements_requires_matching_contract(client_with_measurement) -> None:
+    client, session_factory, measurement_id = client_with_measurement
+    with session_factory() as session:
+        target = session.get(Measurement, measurement_id)
+        assert target is not None
+        source = Measurement(
+            project_id=target.project_id,
+            room_no="999",
+            room_name=target.room_name,
+            category=target.category,
+            finish_code=target.finish_code,
+            measurement_type=target.measurement_type,
+            unit=target.unit,
+            status=ReviewStatus.NEEDS_REVIEW,
+        )
+        session.add(source)
+        session.commit()
+        source_id = source.id
+
+    response = client.post("/measurements/merge", json={"target_id": measurement_id, "source_ids": [source_id]})
+
+    assert response.status_code == 400
+    assert "room, category, code, type, and unit match" in response.json()["detail"]["message"]
+
+
+def test_drawing_file_room_status_summarizes_active_measurements(tmp_path) -> None:
+    database_url = f"sqlite:///{(tmp_path / 'room_status_test.db').as_posix()}"
+    engine = create_engine(database_url, connect_args={"check_same_thread": False})
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+    init_db(engine)
+    with TestingSessionLocal() as session:
+        project = Project(name="Room Status Project")
+        session.add(project)
+        session.flush()
+        drawing_file = DrawingFile(
+            project_id=project.id,
+            original_filename="sample.pdf",
+            stored_path="data/uploads/sample.pdf",
+            page_count=1,
+        )
+        session.add(drawing_file)
+        session.flush()
+        sheet = DrawingSheet(drawing_file_id=drawing_file.id, page_index=0, sheet_no="AE401")
+        session.add(sheet)
+        session.flush()
+        room_finish = RoomFinish(
+            project_id=project.id,
+            drawing_sheet_id=sheet.id,
+            room_no="110",
+            room_name="OFFICE",
+        )
+        session.add(room_finish)
+        session.flush()
+        session.add_all(
+            [
+                Measurement(
+                    project_id=project.id,
+                    room_finish_id=room_finish.id,
+                    room_no="110",
+                    room_name="OFFICE",
+                    category="FLOOR",
+                    finish_code="VCT",
+                    measurement_type=MeasurementType.FLOOR_AREA,
+                    quantity=Decimal("10.00"),
+                    unit="m2",
+                    status=ReviewStatus.CONFIRMED,
+                ),
+                Measurement(
+                    project_id=project.id,
+                    room_finish_id=room_finish.id,
+                    room_no="110",
+                    room_name="OFFICE",
+                    category="WALL",
+                    finish_code="GWB",
+                    measurement_type=MeasurementType.WALL_AREA,
+                    unit="m2",
+                    status=ReviewStatus.NEEDS_REVIEW,
+                ),
+                Measurement(
+                    project_id=project.id,
+                    room_finish_id=room_finish.id,
+                    room_no="110",
+                    room_name="OFFICE",
+                    category="BASE",
+                    finish_code="RB",
+                    measurement_type=MeasurementType.PERIMETER_LENGTH,
+                    unit="m",
+                    status=ReviewStatus.REJECTED,
+                ),
+            ]
+        )
+        session.commit()
+        drawing_file_id = drawing_file.id
+
+    def override_get_db() -> Generator[Session, None, None]:
+        db = TestingSessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = override_get_db
+    try:
+        with TestClient(app) as client:
+            response = client.get(f"/drawing-files/{drawing_file_id}/room-status")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    room = response.json()["rooms"][0]
+    assert room["room_no"] == "110"
+    assert room["total_count"] == 2
+    assert room["quantity_count"] == 1
+    assert room["confirmed_count"] == 1
+    assert room["needs_review_count"] == 1
+    assert room["missing_quantity_count"] == 1

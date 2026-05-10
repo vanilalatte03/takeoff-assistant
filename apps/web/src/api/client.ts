@@ -1,6 +1,7 @@
 import type {
   DrawingFile,
   DrawingFilePageProcessResult,
+  DrawingFileRoomStatus,
   DrawingFileSheetClassificationResult,
   DrawingFileSheetDetectionResult,
   DrawingSheetRole,
@@ -8,7 +9,10 @@ import type {
   Measurement,
   MeasurementCalculationInput,
   MeasurementGenerationResult,
+  MeasurementMergeInput,
   MeasurementUpdate,
+  Project,
+  ProjectCreate,
   RoomFinish,
   RoomFinishCreate,
   RoomFinishExtractionResult,
@@ -83,6 +87,17 @@ export function pageImageUrl(drawingFileId: number, pageIndex: number) {
   return buildUrl(`/drawing-files/${drawingFileId}/pages/${pageIndex}/image`);
 }
 
+export function listProjects() {
+  return requestJson<Project[]>("/projects");
+}
+
+export function createProject(payload: ProjectCreate) {
+  return requestJson<Project>("/projects", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function uploadDrawingFile(projectId: number, file: File) {
   const body = new FormData();
   body.set("project_id", String(projectId));
@@ -148,6 +163,12 @@ export function updateRoomFinish(roomFinishId: number, payload: RoomFinishUpdate
   });
 }
 
+export function rejectRoomFinish(roomFinishId: number) {
+  return requestJson<RoomFinish>(`/room-finishes/${roomFinishId}`, {
+    method: "DELETE",
+  });
+}
+
 export function generateMeasurements(drawingFileId: number) {
   return requestJson<MeasurementGenerationResult>(`/drawing-files/${drawingFileId}/measurements/generate`, {
     method: "POST",
@@ -156,6 +177,10 @@ export function generateMeasurements(drawingFileId: number) {
 
 export function listMeasurements(drawingFileId: number) {
   return requestJson<Measurement[]>(`/drawing-files/${drawingFileId}/measurements`);
+}
+
+export function getDrawingFileRoomStatus(drawingFileId: number) {
+  return requestJson<DrawingFileRoomStatus>(`/drawing-files/${drawingFileId}/room-status`);
 }
 
 export async function downloadMeasurementsExcel(drawingFileId: number) {
@@ -175,6 +200,19 @@ export async function downloadMeasurementsExcel(drawingFileId: number) {
 export function updateMeasurement(measurementId: number, payload: MeasurementUpdate) {
   return requestJson<Measurement>(`/measurements/${measurementId}`, {
     method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function rejectMeasurement(measurementId: number) {
+  return requestJson<Measurement>(`/measurements/${measurementId}`, {
+    method: "DELETE",
+  });
+}
+
+export function mergeMeasurements(payload: MeasurementMergeInput) {
+  return requestJson<Measurement>("/measurements/merge", {
+    method: "POST",
     body: JSON.stringify(payload),
   });
 }

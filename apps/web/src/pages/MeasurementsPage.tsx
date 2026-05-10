@@ -1,11 +1,18 @@
 import { FormEvent, useMemo, useState } from "react";
 
-import { downloadMeasurementsExcel, generateMeasurements, listMeasurements } from "../api/client";
+import {
+  downloadMeasurementsExcel,
+  generateMeasurements,
+  getDrawingFileRoomStatus,
+  listMeasurements,
+  mergeMeasurements,
+  rejectMeasurement,
+} from "../api/client";
 import { EmptyState, ErrorMessage } from "../components/ApiState";
 import { MeasurementCalculationForm } from "../components/MeasurementCalculationForm";
 import { PageHeader } from "../components/PageHeader";
 import { StatusBadge } from "../components/StatusBadge";
-import type { Measurement, MeasurementType, ReviewStatus } from "../types/api";
+import type { DrawingFileRoomStatus, Measurement, MeasurementType, ReviewStatus } from "../types/api";
 
 const measurementTypeOptions: Array<MeasurementType | ""> = [
   "",
@@ -21,7 +28,7 @@ const statusOptions: Array<ReviewStatus | ""> = ["", "DRAFT", "NEEDS_REVIEW", "C
 function parseDrawingFileId(value: string) {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new Error("Drawing File ID는 1 이상의 정수여야 합니다.");
+    throw new Error("Drawing File ID must be a positive integer.");
   }
   return parsed;
 }
@@ -40,11 +47,16 @@ function triggerDownload(blob: Blob, filename: string) {
 export function MeasurementsPage() {
   const [drawingFileId, setDrawingFileId] = useState("");
   const [rows, setRows] = useState<Measurement[]>([]);
+  const [roomStatus, setRoomStatus] = useState<DrawingFileRoomStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [pendingRowId, setPendingRowId] = useState<number | null>(null);
+  const [isMerging, setIsMerging] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [selectedMeasurementId, setSelectedMeasurementId] = useState<number | null>(null);
+  const [mergeTargetId, setMergeTargetId] = useState("");
+  const [mergeSourceIds, setMergeSourceIds] = useState<number[]>([]);
   const [roomNoFilter, setRoomNoFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [codeFilter, setCodeFilter] = useState("");
@@ -68,8 +80,14 @@ export function MeasurementsPage() {
     [categoryFilter, codeFilter, measurementTypeFilter, roomNoFilter, rows, statusFilter],
   );
 
+  async function loadRoomStatus(id: number) {
+    const loadedStatus = await getDrawingFileRoomStatus(id);
+    setRoomStatus(loadedStatus);
+    return loadedStatus;
+  }
+
   async function loadRows(id: number) {
-    const loaded = await listMeasurements(id);
+    const [loaded] = await Promise.all([listMeasurements(id), loadRoomStatus(id)]);
     setRows(loaded);
     setSelectedMeasurementId((current) => {
       if (current && loaded.some((row) => row.id === current)) {
@@ -77,6 +95,8 @@ export function MeasurementsPage() {
       }
       return loaded[0]?.id ?? null;
     });
+    setMergeTargetId((current) => current || (loaded[0] ? String(loaded[0].id) : ""));
+    setMergeSourceIds((current) => current.filter((idValue) => loaded.some((row) => row.id === idValue)));
     return loaded;
   }
 
@@ -87,7 +107,7 @@ export function MeasurementsPage() {
     setMessage(null);
     try {
       const loaded = await loadRows(parseDrawingFileId(drawingFileId));
-      setMessage(`Measurement ${loaded.length}건`);
+      setMessage(`Loaded ${loaded.length} measurements.`);
     } catch (caught) {
       setError(caught);
     } finally {
@@ -103,7 +123,7 @@ export function MeasurementsPage() {
       const id = parseDrawingFileId(drawingFileId);
       const result = await generateMeasurements(id);
       const loaded = await loadRows(id);
-      setMessage(`후보 ${result.measurements.length}건 생성, 전체 ${loaded.length}건`);
+      setMessage(`Generated ${result.measurements.length} candidates. Total loaded: ${loaded.length}.`);
     } catch (caught) {
       setError(caught);
     } finally {
@@ -119,7 +139,7 @@ export function MeasurementsPage() {
       const id = parseDrawingFileId(drawingFileId);
       const exportFile = await downloadMeasurementsExcel(id);
       triggerDownload(exportFile.blob, exportFile.filename);
-      setMessage(`${exportFile.filename} 다운로드를 시작했습니다.`);
+      setMessage(`Downloaded ${exportFile.filename}.`);
     } catch (caught) {
       setError(caught);
     } finally {
@@ -132,14 +152,59 @@ export function MeasurementsPage() {
     setSelectedMeasurementId(saved.id);
   }
 
+  async function handleReject(row: Measurement) {
+    setPendingRowId(row.id);
+    setError(null);
+    setMessage(null);
+    try {
+      const rejected = await rejectMeasurement(row.id);
+      handleMeasurementSaved(rejected);
+      setMessage(`Measurement ${rejected.id} rejected.`);
+      if (drawingFileId) {
+        await loadRoomStatus(parseDrawingFileId(drawingFileId));
+      }
+    } catch (caught) {
+      setError(caught);
+    } finally {
+      setPendingRowId(null);
+    }
+  }
+
+  async function handleMerge() {
+    setIsMerging(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const targetId = parseDrawingFileId(mergeTargetId);
+      const sourceIds = mergeSourceIds.filter((idValue) => idValue !== targetId);
+      if (!sourceIds.length) {
+        throw new Error("Choose at least one source measurement to merge.");
+      }
+      const merged = await mergeMeasurements({ target_id: targetId, source_ids: sourceIds });
+      const id = parseDrawingFileId(drawingFileId);
+      const loaded = await loadRows(id);
+      setSelectedMeasurementId(merged.id);
+      setMergeSourceIds([]);
+      setMessage(`Merged ${sourceIds.length} measurements into #${merged.id}. Total loaded: ${loaded.length}.`);
+    } catch (caught) {
+      setError(caught);
+    } finally {
+      setIsMerging(false);
+    }
+  }
+
+  function toggleMergeSource(rowId: number, checked: boolean) {
+    setMergeSourceIds((current) => (checked ? [...new Set([...current, rowId])] : current.filter((idValue) => idValue !== rowId)));
+  }
+
   return (
     <>
       <PageHeader
-        title="Measurement 목록"
-        description="Room Finish 기반 산출 후보를 검수하고 계산 결과를 확인하는 목록입니다."
+        title="Measurement Review"
+        description="Generate, calculate, merge, reject, and export takeoff measurements."
         actions={
           <button type="button" className="button-secondary" disabled={isDownloading} onClick={handleDownload}>
-            {isDownloading ? "Excel 생성 중" : "Excel 다운로드"}
+            {isDownloading ? "Exporting..." : "Export Excel"}
           </button>
         }
       />
@@ -151,14 +216,82 @@ export function MeasurementsPage() {
             <input value={drawingFileId} inputMode="numeric" onChange={(event) => setDrawingFileId(event.target.value)} />
           </label>
           <button type="submit" disabled={isLoading}>
-            목록 조회
+            Load
           </button>
           <button type="button" className="button-secondary" disabled={isLoading} onClick={handleGenerate}>
-            후보 생성
+            Generate
           </button>
         </form>
         <ErrorMessage error={error} />
         {message ? <div className="message message-success">{message}</div> : null}
+      </section>
+
+      <section className="panel">
+        <div className="section-heading">
+          <h2>Room Status</h2>
+          <span className="count-label">{roomStatus?.rooms.length ?? 0} rooms</span>
+        </div>
+        {roomStatus?.rooms.length ? (
+          <div className="room-status-grid">
+            {roomStatus.rooms.map((room) => (
+              <button
+                key={`${room.room_no ?? "room"}-${room.room_name ?? ""}`}
+                type="button"
+                className="room-status-card"
+                onClick={() => setRoomNoFilter(room.room_no ?? "")}
+              >
+                <strong>{room.room_no ?? "-"}</strong>
+                <span>{room.room_name ?? "Unnamed room"}</span>
+                <dl>
+                  <div>
+                    <dt>Total</dt>
+                    <dd>{room.total_count}</dd>
+                  </div>
+                  <div>
+                    <dt>Qty</dt>
+                    <dd>{room.quantity_count}</dd>
+                  </div>
+                  <div>
+                    <dt>Confirmed</dt>
+                    <dd>{room.confirmed_count}</dd>
+                  </div>
+                  <div>
+                    <dt>Review</dt>
+                    <dd>{room.needs_review_count}</dd>
+                  </div>
+                  <div>
+                    <dt>Missing</dt>
+                    <dd>{room.missing_quantity_count}</dd>
+                  </div>
+                </dl>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <EmptyState>Load a drawing file to see room measurement status.</EmptyState>
+        )}
+      </section>
+
+      <section className="panel">
+        <div className="section-heading">
+          <h2>Merge Measurements</h2>
+          <span className="count-label">{mergeSourceIds.length} sources selected</span>
+        </div>
+        <div className="merge-grid">
+          <label>
+            <span>Target</span>
+            <select value={mergeTargetId} onChange={(event) => setMergeTargetId(event.target.value)} disabled={!rows.length}>
+              {rows.map((row) => (
+                <option key={row.id} value={row.id}>
+                  #{row.id} {row.room_no ?? "-"} {row.category} {row.finish_code}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="button" disabled={isMerging || !mergeTargetId || !mergeSourceIds.length} onClick={handleMerge}>
+            {isMerging ? "Merging..." : "Merge selected"}
+          </button>
+        </div>
       </section>
 
       <MeasurementCalculationForm measurement={selectedMeasurement} onSaved={handleMeasurementSaved} />
@@ -167,7 +300,7 @@ export function MeasurementsPage() {
         <div className="section-heading">
           <h2>Measurements</h2>
           <span className="count-label">
-            {filteredRows.length} / {rows.length}건
+            {filteredRows.length} / {rows.length} rows
           </span>
         </div>
         <div className="measurement-filter-grid">
@@ -188,7 +321,7 @@ export function MeasurementsPage() {
             <select value={measurementTypeFilter} onChange={(event) => setMeasurementTypeFilter(event.target.value as MeasurementType | "")}>
               {measurementTypeOptions.map((type) => (
                 <option key={type || "ALL"} value={type}>
-                  {type || "전체"}
+                  {type || "All"}
                 </option>
               ))}
             </select>
@@ -198,7 +331,7 @@ export function MeasurementsPage() {
             <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as ReviewStatus | "")}>
               {statusOptions.map((status) => (
                 <option key={status || "ALL"} value={status}>
-                  {status || "전체"}
+                  {status || "All"}
                 </option>
               ))}
             </select>
@@ -209,7 +342,8 @@ export function MeasurementsPage() {
             <table>
               <thead>
                 <tr>
-                  <th>선택</th>
+                  <th>Select</th>
+                  <th>Merge</th>
                   <th>Room</th>
                   <th>Category</th>
                   <th>Finish Code</th>
@@ -219,6 +353,7 @@ export function MeasurementsPage() {
                   <th>Unit</th>
                   <th>Source Sheets</th>
                   <th>Status</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -237,8 +372,19 @@ export function MeasurementsPage() {
                           setSelectedMeasurementId(row.id);
                         }}
                       >
-                        선택
+                        Select
                       </button>
+                    </td>
+                    <td onClick={(event) => event.stopPropagation()}>
+                      <label className="checkbox-label table-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={mergeSourceIds.includes(row.id)}
+                          disabled={String(row.id) === mergeTargetId}
+                          onChange={(event) => toggleMergeSource(row.id, event.target.checked)}
+                        />
+                        <span>Source</span>
+                      </label>
                     </td>
                     <td>
                       <strong>{row.room_no ?? "-"}</strong>
@@ -254,13 +400,23 @@ export function MeasurementsPage() {
                     <td>
                       <StatusBadge status={row.status} />
                     </td>
+                    <td onClick={(event) => event.stopPropagation()}>
+                      <button
+                        type="button"
+                        className="button-secondary compact-button danger-button"
+                        disabled={pendingRowId === row.id || row.status === "REJECTED"}
+                        onClick={() => handleReject(row)}
+                      >
+                        Reject
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         ) : (
-          <EmptyState>{rows.length ? "필터 조건에 맞는 Measurement가 없습니다." : "조회된 Measurement가 없습니다."}</EmptyState>
+          <EmptyState>{rows.length ? "No measurements match the filters." : "No measurements loaded."}</EmptyState>
         )}
       </section>
     </>

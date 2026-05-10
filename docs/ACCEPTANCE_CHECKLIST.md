@@ -32,7 +32,7 @@
 - [x] Backend test가 통과한다.
 - [x] Frontend가 build된다.
 - [x] 기밀 sample PDF가 공개 저장소에 커밋되지 않는다.
-- [ ] Extraction failure가 silent success가 아니라 `NEEDS_REVIEW`를 만든다. 생성된 RoomFinish 후보는 `NEEDS_REVIEW`지만, 추출 실패가 빈 결과로 끝나는 경로는 추가 UX 처리가 필요하다.
+- [x] Extraction failure가 silent success가 아니라 `NEEDS_REVIEW` 또는 warning으로 드러난다.
 - [ ] 모든 추출 데이터가 수정 가능하다. RoomFinish와 Measurement는 수정 가능하지만, sheet metadata 수정 UI/API는 아직 없다.
 - [x] 모든 계산 수량을 source sheet로 추적할 수 있다.
 
@@ -43,3 +43,29 @@
 - [x] Wall/partition area: 4.2 * 4.6 = 19.32 m2
 - [x] Deduction: 20.00 - 1.89 = 18.11 m2
 - [x] GWB two-sided partition: 4.2 * 4.6 * 2 = 38.64 m2
+
+## 2차 검수형 MVP 인수 기준
+
+- [x] 사용자가 업로드 화면에서 Project를 선택할 수 있다.
+- [x] 사용자가 업로드 화면에서 Project를 생성할 수 있다.
+- [x] 기존 `Project ID` 직접 입력 경로가 필요한 경우 보조 경로로 남아 있다.
+- [x] RoomFinish 목록을 room no, room name, finish code, status로 필터링할 수 있다.
+- [x] RoomFinish 행을 빠르게 저장할 수 있고 저장 후 필터/목록 상태가 유지된다.
+- [x] RoomFinish 삭제 동작은 물리 삭제가 아니라 `REJECTED` 처리다.
+- [x] RoomFinish를 `REJECTED` 처리하면 연결된 미확정 Measurement도 `REJECTED` 처리된다.
+- [x] `CONFIRMED` Measurement가 연결된 RoomFinish는 실수로 reject되지 않는다.
+- [x] Finish schedule 추출 결과가 0건이면 수동 입력이 필요하다는 warning이 표시된다.
+- [x] Measurement 후보를 category, code, type, status, room no 기준으로 찾을 수 있다.
+- [x] Measurement 삭제 동작은 물리 삭제가 아니라 `REJECTED` 처리다.
+- [x] `CONFIRMED` Measurement는 reject-delete되지 않는다.
+- [x] 같은 room/category/code/type/unit 조건을 만족하는 Measurement만 병합할 수 있다.
+- [x] 병합 후 target Measurement는 quantity, formula, source sheet, memo 추적성을 유지한다.
+- [x] 병합 source Measurement는 `REJECTED`로 남는다.
+- [x] 방별로 전체 후보 수, 계산 완료 수, 확정 수, 검수 필요 수, 수량 누락 수를 볼 수 있다.
+- [x] 도면 위 count click으로 `COUNT` Measurement를 저장할 수 있다.
+- [x] Count click 결과는 unit `EA`와 클릭 좌표 `coordinates_json`을 저장한다.
+- [x] Excel export에 기존 Summary sheet가 유지된다.
+- [x] Excel export에 기존 Details sheet가 유지된다.
+- [x] Excel export에 검수용 Review sheet가 추가된다.
+- [x] Review sheet는 `REJECTED` row를 제외한다.
+- [x] Review sheet는 room, category, code, formula, quantity, unit, status, memo를 포함한다.

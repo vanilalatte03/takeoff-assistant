@@ -139,3 +139,24 @@ def test_upload_requires_existing_project(client_with_db) -> None:
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Project not found."
+
+
+def test_project_list_and_create_api_support_upload_selection(client_with_db) -> None:
+    client, _ = client_with_db
+
+    create_response = client.post(
+        "/projects",
+        json={
+            "name": "New Upload Project",
+            "description": "Created from upload screen",
+        },
+    )
+    assert create_response.status_code == 201
+    created = create_response.json()
+    assert created["name"] == "New Upload Project"
+    assert created["description"] == "Created from upload screen"
+
+    list_response = client.get("/projects")
+
+    assert list_response.status_code == 200
+    assert [project["name"] for project in list_response.json()] == ["Default Project", "New Upload Project"]

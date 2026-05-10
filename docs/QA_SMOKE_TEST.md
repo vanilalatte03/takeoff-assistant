@@ -7,8 +7,9 @@
 검증 목표는 완전 자동 적산이 아니다. 아래 흐름이 가능해야 한다.
 
 ```text
-PDF 업로드 -> 도면 목록/검색 -> 마감표 후보 확인/수정 -> Measurement 후보 생성
--> 직접 치수 입력/계산 -> CONFIRMED 처리 -> Excel 요약/상세 확인
+Project 선택/생성 -> PDF 업로드 -> 도면 목록/검색 -> 마감표 후보 확인/수정/reject
+-> Measurement 후보 생성 -> 직접 치수 입력/계산/reject/merge/count click
+-> CONFIRMED 처리 -> Excel Summary/Details/Review 확인
 ```
 
 ## 사전 준비
@@ -16,9 +17,8 @@ PDF 업로드 -> 도면 목록/검색 -> 마감표 후보 확인/수정 -> Measu
 - 샘플 PDF를 `data/samples/` 아래에 둔다.
 - 샘플 PDF, 업로드 파일, Excel 결과물은 공개 저장소에 커밋하지 않는다.
 - FastAPI 서버와 React 개발 서버를 실행한다.
-- 업로드 화면에서 사용할 `Project ID`가 DB에 존재해야 한다.
-  - 현재 MVP에는 Project 생성 화면이 없다.
-  - 업로드 시 `Project not found.`가 나오면 테스트용 Project를 먼저 DB에 생성해야 한다.
+- 업로드 화면에서 기존 Project를 선택하거나 새 Project를 생성한다.
+- 기존 `Project ID` 직접 입력은 보조 경로로만 사용한다.
 
 ## 테스트 기록 양식
 
@@ -27,7 +27,13 @@ PDF 업로드 -> 도면 목록/검색 -> 마감표 후보 확인/수정 -> Measu
 검증자:
 샘플 PDF 파일명:
 Project ID:
+Project 이름:
 Drawing File ID:
+RoomFinish reject 대상:
+Measurement reject 대상:
+Measurement merge target/source:
+Count click 대상 Measurement:
+Review sheet 확인 결과:
 사용한 주요 도면:
   - 평면도:
   - 마감표:
@@ -36,14 +42,36 @@ Drawing File ID:
 전체 판정: 통과 / 실패
 ```
 
-## 1. PDF 업로드
+## 1. Project 선택/생성
 
 ### 절차
 
 1. 앱에서 `PDF 업로드` 화면을 연다.
-2. `Project ID`를 입력한다.
-3. 샘플 PDF를 선택한다.
-4. `PDF 업로드`를 누른다.
+2. Project 목록에서 기존 Project를 선택한다.
+3. 새 Project가 필요하면 이름과 설명을 입력하고 `Create project`를 누른다.
+4. 생성된 Project가 선택되는지 확인한다.
+5. 보조 경로로 `Project ID` 직접 입력도 가능한지 확인한다.
+
+### 기대 결과
+
+- Project 목록이 표시된다.
+- 새 Project를 화면에서 생성할 수 있다.
+- 생성한 Project ID로 PDF 업로드를 시작할 수 있다.
+
+### 체크
+
+- [ ] 기존 Project 선택 가능
+- [ ] 새 Project 생성 가능
+- [ ] 생성 후 선택 상태 확인
+- [ ] Project ID 보조 입력 경로 유지
+
+## 2. PDF 업로드
+
+### 절차
+
+1. 선택된 Project를 확인한다.
+2. 샘플 PDF를 선택한다.
+3. `PDF 업로드`를 누른다.
 
 ### 기대 결과
 
@@ -65,7 +93,7 @@ Drawing File ID:
 - PDF가 아닌 파일이 거부되는 것은 정상이다.
 - 손상된 PDF가 거부되는 것은 정상이다.
 
-## 2. 도면 목록 생성
+## 3. 도면 목록 생성
 
 ### 절차
 
@@ -90,7 +118,7 @@ Drawing File ID:
 - [ ] 도면 역할 분류
 - [ ] 여러 장의 도면이 목록에 표시
 
-## 3. AE101 같은 평면도 검색
+## 4. AE101 같은 평면도 검색
 
 ### 절차
 
@@ -111,7 +139,7 @@ Drawing File ID:
 - [ ] `FLOOR_PLAN` 역할 필터 가능
 - [ ] 상세 화면에서 페이지 이미지 확인 가능
 
-## 4. AE401 또는 AE402 같은 마감표 검색
+## 5. AE401 또는 AE402 같은 마감표 검색
 
 ### 절차
 
@@ -132,7 +160,7 @@ Drawing File ID:
 - [ ] `FINISH_SCHEDULE` 역할 필터 가능
 - [ ] 마감표가 AE601로 하드코딩되지 않음
 
-## 5. FINISH_SCHEDULE에서 RoomFinish 후보 확인
+## 6. FINISH_SCHEDULE에서 RoomFinish 후보 확인
 
 ### 절차
 
@@ -170,7 +198,7 @@ Drawing File ID:
 - 자동 추출이 완벽하지 않아도, 사용자가 수정할 수 있으면 MVP 기준에 부합한다.
 - 스캔 PDF는 OCR이 MVP 범위가 아니므로 텍스트 추출 실패가 발생할 수 있다.
 
-## 6. RoomFinish 수정
+## 7. RoomFinish 수정/필터/reject
 
 ### 절차
 
@@ -184,11 +212,18 @@ Drawing File ID:
    - Ceiling
    - Height
 3. `저장`을 누른다.
+4. Room No, Room Name, finish code, status 필터를 각각 적용한다.
+5. 불필요한 미확정 RoomFinish를 하나 골라 `Reject`를 누른다.
+6. 연결된 `CONFIRMED` Measurement가 있는 RoomFinish reject가 차단되는지 확인한다.
 
 ### 기대 결과
 
 - 수정한 값이 저장된다.
 - 목록을 다시 조회해도 수정값이 유지된다.
+- 필터를 적용해도 저장 후 목록 상태가 유지된다.
+- Reject는 row를 삭제하지 않고 `REJECTED` 상태로 남긴다.
+- 연결된 미확정 Measurement는 함께 `REJECTED`가 된다.
+- 연결된 `CONFIRMED` Measurement가 있으면 reject가 실패한다.
 
 ### 체크
 
@@ -197,8 +232,12 @@ Drawing File ID:
 - [ ] Floor/Base/Wall/Ceiling 수정 가능
 - [ ] Height 수정 가능
 - [ ] 저장 후 수정값 유지
+- [ ] RoomFinish 필터 가능
+- [ ] RoomFinish reject 시 물리 삭제 없음
+- [ ] 미확정 Measurement cascade reject 확인
+- [ ] CONFIRMED 연결 row 보호 확인
 
-## 7. Measurement 후보 생성
+## 8. Measurement 후보 생성
 
 ### 절차
 
@@ -225,7 +264,37 @@ Drawing File ID:
 - [ ] Room별 후보가 남아 있음
 - [ ] source_sheets에 마감표 도면 번호가 남아 있음
 
-## 8. 직접 치수 입력으로 면적 계산
+## 9. Measurement 필터/reject/merge/방별 상태
+
+### 절차
+
+1. `Measurement` 화면에서 Drawing File ID를 입력하고 목록을 조회한다.
+2. Room Status 패널에서 방별 `Total`, `Qty`, `Confirmed`, `Review`, `Missing` 값을 확인한다.
+3. Room No, Category, Code, Type, Status 필터를 각각 적용한다.
+4. 미확정 Measurement 하나를 선택해 `Reject`를 누른다.
+5. `CONFIRMED` Measurement reject가 차단되는지 확인한다.
+6. 같은 `room_no`, `category`, `finish_code`, `measurement_type`, `unit`인 두 후보를 골라 target/source로 병합한다.
+7. 다른 room 또는 다른 code 후보 병합이 실패하는지 확인한다.
+
+### 기대 결과
+
+- 방별 산출 진행 상태가 표시된다.
+- Measurement reject는 물리 삭제가 아니라 `REJECTED` 상태 변경이다.
+- `CONFIRMED` row는 reject와 merge에서 보호된다.
+- 병합 target은 quantity, formula, source sheet, memo 추적성을 유지한다.
+- 병합 source는 `REJECTED` 상태로 남는다.
+
+### 체크
+
+- [ ] Room Status 패널 표시
+- [ ] Measurement 필터 가능
+- [ ] Measurement reject 시 물리 삭제 없음
+- [ ] CONFIRMED reject 차단
+- [ ] 동일 조건 Measurement 병합 가능
+- [ ] 다른 조건 Measurement 병합 차단
+- [ ] 병합 source가 REJECTED로 남음
+
+## 10. 직접 치수 입력으로 면적 계산
 
 ### 절차
 
@@ -258,7 +327,7 @@ height: 2.7
 - [ ] 저장 후 quantity 저장
 - [ ] 저장 후 unit 저장
 
-## 9. 직접 치수 입력으로 둘레 계산 및 공제값 입력
+## 11. 직접 치수 입력으로 둘레 계산 및 공제값 입력
 
 ### 절차
 
@@ -291,7 +360,7 @@ deduction label: opening
 - [ ] 미리보기 수량 13.00 확인
 - [ ] 저장 후 공제가 반영된 formula 저장
 
-## 10. 직접 치수 입력으로 벽체면적 계산 및 공제값 입력
+## 12. 직접 치수 입력으로 벽체면적 계산 및 공제값 입력
 
 ### 절차
 
@@ -325,7 +394,7 @@ deduction label: door
 - [ ] 미리보기 수량 17.43 확인
 - [ ] 저장 후 formula/quantity/unit 확인
 
-## 11. 파티션 양면 계산 확인
+## 13. 파티션 양면 계산 확인
 
 ### 절차
 
@@ -357,7 +426,35 @@ side_count: 2
 - [ ] 미리보기 수량 38.64 확인
 - [ ] 저장 후 formula/quantity/unit 확인
 
-## 12. 계산 결과 CONFIRMED 처리
+## 14. Count click 측정
+
+### 절차
+
+1. `Drawing Detail` 화면에서 평면도 페이지를 연다.
+2. Measurement 후보 목록에 `COUNT` 타입 후보가 있는지 확인한다.
+3. 측정 모드를 `개수 클릭`으로 선택한다.
+4. 도면 위 대상 위치를 여러 번 클릭한다.
+5. 결과 수량이 클릭 수와 같은지 확인한다.
+6. `Measurement에 저장`을 누른다.
+
+### 기대 결과
+
+- 클릭 개수가 quantity로 저장된다.
+- unit은 `EA`로 저장된다.
+- formula는 클릭 개수를 읽을 수 있는 형태로 저장된다.
+- `coordinates_json`에 drawing file, page index, image size, view transform, clicked points, result가 남는다.
+- `COUNT`가 아닌 Measurement에는 count click 결과를 저장할 수 없다.
+
+### 체크
+
+- [ ] Count click 모드 표시
+- [ ] 클릭 수량 표시
+- [ ] COUNT Measurement에 저장 가능
+- [ ] unit `EA` 저장
+- [ ] coordinates_json에 클릭 좌표 저장
+- [ ] COUNT가 아닌 후보 저장 차단
+
+## 15. 계산 결과 CONFIRMED 처리
 
 ### 절차
 
@@ -377,7 +474,7 @@ side_count: 2
 - [ ] 저장 후 상태가 CONFIRMED로 변경
 - [ ] 다른 미검수 후보는 CONFIRMED가 아님
 
-## 13. Excel Summary/Details 다운로드
+## 16. Excel Summary/Details/Review 다운로드
 
 ### 절차
 
@@ -385,6 +482,7 @@ side_count: 2
 2. 다운로드된 `.xlsx` 파일을 연다.
 3. `Summary` 시트를 확인한다.
 4. `Details` 시트를 확인한다.
+5. `Review` 시트를 확인한다.
 
 ### Summary 기대 결과
 
@@ -419,17 +517,38 @@ Status
 Memo
 ```
 
+### Review 기대 결과
+
+- `REJECTED` Measurement는 포함되지 않는다.
+- 아래 열이 있다.
+
+```text
+Drawing No
+Room No
+Room Name
+Category
+Code
+Formula
+Quantity
+Unit
+Status
+Memo
+```
+
 ### 체크
 
 - [ ] Excel 다운로드 성공
 - [ ] Summary 시트 존재
 - [ ] Details 시트 존재
+- [ ] Review 시트 존재
 - [ ] Summary가 Category/Code/Unit 기준으로 합산
 - [ ] Details에 Room No가 남음
 - [ ] Details에 Formula가 남음
 - [ ] Details에 Quantity가 소수점 둘째 자리로 표시
 - [ ] Details에 Source Sheets가 남음
 - [ ] CONFIRMED 상태가 Details에 남음
+- [ ] Review에 REJECTED row가 없음
+- [ ] Review에 Formula/Quantity/Status/Memo가 남음
 
 ## 최종 판정 기준
 
@@ -443,6 +562,7 @@ Memo
 - 사용자가 검토한 항목만 `CONFIRMED`로 바꿀 수 있다.
 - Excel Summary에서 마감 코드별 합계를 볼 수 있다.
 - Excel Details에서 Room별 계산식과 도면 출처를 추적할 수 있다.
+- Excel Review에서 검수 대상 row만 확인할 수 있다.
 
 실패로 봐야 하는 기준:
 
@@ -453,4 +573,8 @@ Memo
 - Measurement 후보가 생성되지 않는다.
 - 계산 결과에 formula, quantity, unit, source_sheets 중 하나가 저장되지 않는다.
 - Excel에 Summary 또는 Details 시트가 없다.
+- Excel에 Review 시트가 없다.
+- Excel Review에 `REJECTED` row가 포함된다.
+- `CONFIRMED` row가 reject 또는 merge로 자동 변경된다.
+- reject 동작이 DB row를 물리 삭제한다.
 - Excel Details에서 계산식이나 도면 출처를 확인할 수 없다.

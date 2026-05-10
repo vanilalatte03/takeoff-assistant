@@ -1,17 +1,24 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 
-import { createRoomFinishForDrawingFile, extractRoomFinishes, listRoomFinishes, updateRoomFinish } from "../api/client";
+import {
+  createRoomFinishForDrawingFile,
+  extractRoomFinishes,
+  listRoomFinishes,
+  rejectRoomFinish,
+  updateRoomFinish,
+} from "../api/client";
 import { EmptyState, ErrorMessage } from "../components/ApiState";
 import { PageHeader } from "../components/PageHeader";
 import { StatusBadge } from "../components/StatusBadge";
 import type { ReviewStatus, RoomFinish, RoomFinishCreate } from "../types/api";
 
 const statuses: ReviewStatus[] = ["DRAFT", "NEEDS_REVIEW", "CONFIRMED", "REJECTED"];
+const statusFilters: Array<ReviewStatus | ""> = ["", ...statuses];
 
 function parseDrawingFileId(value: string) {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new Error("Drawing File ID는 1 이상의 정수여야 합니다.");
+    throw new Error("Drawing File ID must be a positive integer.");
   }
   return parsed;
 }
@@ -43,12 +50,40 @@ function normalizeDraft(draft: RoomFinishCreate): RoomFinishCreate {
 export function RoomFinishesPage() {
   const [drawingFileId, setDrawingFileId] = useState("");
   const [rows, setRows] = useState<RoomFinish[]>([]);
+  const [warnings, setWarnings] = useState<string[]>([]);
   const [draft, setDraft] = useState<RoomFinishCreate>(emptyDraft);
   const [pendingRowId, setPendingRowId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<unknown>(null);
+  const [roomFilter, setRoomFilter] = useState("");
+  const [finishFilter, setFinishFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<ReviewStatus | "">("");
+
+  const filteredRows = useMemo(
+    () =>
+      rows.filter((row) => {
+        const roomText = `${row.room_no ?? ""} ${row.room_name ?? ""}`.toUpperCase();
+        const finishText = [
+          row.floor_finish,
+          row.base_finish,
+          row.wall_finish,
+          row.ceiling_finish,
+          row.remarks,
+          row.source_sheet_no,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toUpperCase();
+        return (
+          (!roomFilter.trim() || roomText.includes(roomFilter.trim().toUpperCase())) &&
+          (!finishFilter.trim() || finishText.includes(finishFilter.trim().toUpperCase())) &&
+          (!statusFilter || row.status === statusFilter)
+        );
+      }),
+    [finishFilter, roomFilter, rows, statusFilter],
+  );
 
   async function loadRows(id: number) {
     const loaded = await listRoomFinishes(id);
@@ -63,7 +98,7 @@ export function RoomFinishesPage() {
     setMessage(null);
     try {
       const loaded = await loadRows(parseDrawingFileId(drawingFileId));
-      setMessage(`Room Finish ${loaded.length}건`);
+      setMessage(`Loaded ${loaded.length} room finishes.`);
     } catch (caught) {
       setError(caught);
     } finally {
@@ -75,11 +110,13 @@ export function RoomFinishesPage() {
     setIsLoading(true);
     setError(null);
     setMessage(null);
+    setWarnings([]);
     try {
       const id = parseDrawingFileId(drawingFileId);
       const result = await extractRoomFinishes(id);
       const loaded = await loadRows(id);
-      setMessage(`후보 ${result.room_finishes.length}건 추출, 전체 ${loaded.length}건`);
+      setWarnings(result.warnings ?? []);
+      setMessage(`Extracted ${result.room_finishes.length} room finishes. Total loaded: ${loaded.length}.`);
     } catch (caught) {
       setError(caught);
     } finally {
@@ -107,7 +144,7 @@ export function RoomFinishesPage() {
       const saved = await createRoomFinishForDrawingFile(id, normalizeDraft(draft));
       setRows((current) => [...current, saved]);
       setDraft(emptyDraft());
-      setMessage(`Room ${saved.room_no ?? saved.id} 수동 추가 완료`);
+      setMessage(`Room ${saved.room_no ?? saved.id} created.`);
     } catch (caught) {
       setError(caught);
     } finally {
@@ -132,7 +169,22 @@ export function RoomFinishesPage() {
         status: row.status,
       });
       updateLocalRow(row.id, saved);
-      setMessage(`Room ${saved.room_no ?? saved.id} 저장 완료`);
+      setMessage(`Room ${saved.room_no ?? saved.id} saved.`);
+    } catch (caught) {
+      setError(caught);
+    } finally {
+      setPendingRowId(null);
+    }
+  }
+
+  async function handleReject(row: RoomFinish) {
+    setPendingRowId(row.id);
+    setError(null);
+    setMessage(null);
+    try {
+      const rejected = await rejectRoomFinish(row.id);
+      updateLocalRow(row.id, rejected);
+      setMessage(`Room ${rejected.room_no ?? rejected.id} rejected.`);
     } catch (caught) {
       setError(caught);
     } finally {
@@ -142,7 +194,7 @@ export function RoomFinishesPage() {
 
   return (
     <>
-      <PageHeader title="Room Finish 테이블" description="자동 추출 후보를 검수하고 수정하는 작업 테이블입니다." />
+      <PageHeader title="Room Finish Review" description="Extract, filter, edit, confirm, or reject room finish rows." />
 
       <section className="panel">
         <form className="toolbar-form compact" onSubmit={handleLoad}>
@@ -151,20 +203,30 @@ export function RoomFinishesPage() {
             <input value={drawingFileId} inputMode="numeric" onChange={(event) => setDrawingFileId(event.target.value)} />
           </label>
           <button type="submit" disabled={isLoading}>
-            목록 조회
+            Load
           </button>
           <button type="button" className="button-secondary" disabled={isLoading} onClick={handleExtract}>
-            후보 추출
+            Extract
           </button>
         </form>
         <ErrorMessage error={error} />
         {message ? <div className="message message-success">{message}</div> : null}
+        {warnings.length ? (
+          <div className="message message-warning">
+            <strong>Extraction warnings</strong>
+            <ul className="message-list">
+              {warnings.map((warning, index) => (
+                <li key={`${warning}-${index}`}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </section>
 
       <section className="panel">
         <div className="section-heading">
-          <h2>새 Room Finish 추가</h2>
-          <span className="count-label">자동 추출 실패 시 수동 입력</span>
+          <h2>Add Room Finish</h2>
+          <span className="count-label">Manual row</span>
         </div>
         <form className="room-finish-create-grid" onSubmit={handleCreate}>
           <label>
@@ -204,7 +266,7 @@ export function RoomFinishesPage() {
             <input value={draft.remarks ?? ""} onChange={(event) => updateDraft({ remarks: event.target.value })} />
           </label>
           <button type="submit" disabled={isCreating || isLoading}>
-            {isCreating ? "추가 중" : "수동 추가"}
+            {isCreating ? "Creating..." : "Create"}
           </button>
         </form>
       </section>
@@ -212,9 +274,31 @@ export function RoomFinishesPage() {
       <section className="panel">
         <div className="section-heading">
           <h2>Room Finish</h2>
-          <span className="count-label">{rows.length}건</span>
+          <span className="count-label">
+            {filteredRows.length} / {rows.length} rows
+          </span>
         </div>
-        {rows.length ? (
+        <div className="measurement-filter-grid">
+          <label>
+            <span>Room</span>
+            <input value={roomFilter} placeholder="119 or lobby" onChange={(event) => setRoomFilter(event.target.value)} />
+          </label>
+          <label>
+            <span>Finish</span>
+            <input value={finishFilter} placeholder="tile, paint, GWB" onChange={(event) => setFinishFilter(event.target.value)} />
+          </label>
+          <label>
+            <span>Status</span>
+            <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as ReviewStatus | "")}>
+              {statusFilters.map((status) => (
+                <option key={status || "ALL"} value={status}>
+                  {status || "All"}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        {filteredRows.length ? (
           <div className="table-wrap wide">
             <table>
               <thead>
@@ -228,11 +312,11 @@ export function RoomFinishesPage() {
                   <th>Height</th>
                   <th>Status</th>
                   <th>Source</th>
-                  <th>저장</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => (
+                {filteredRows.map((row) => (
                   <tr key={row.id}>
                     <td>
                       <input value={textValue(row.room_no)} onChange={(event) => updateLocalRow(row.id, { room_no: event.target.value })} />
@@ -270,9 +354,19 @@ export function RoomFinishesPage() {
                     </td>
                     <td>{row.source_sheet_no ?? "-"}</td>
                     <td>
-                      <button type="button" className="button-secondary" disabled={pendingRowId === row.id} onClick={() => handleSave(row)}>
-                        {pendingRowId === row.id ? "저장 중" : "저장"}
-                      </button>
+                      <div className="table-actions">
+                        <button type="button" className="button-secondary compact-button" disabled={pendingRowId === row.id} onClick={() => handleSave(row)}>
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          className="button-secondary compact-button danger-button"
+                          disabled={pendingRowId === row.id || row.status === "REJECTED"}
+                          onClick={() => handleReject(row)}
+                        >
+                          Reject
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -280,7 +374,7 @@ export function RoomFinishesPage() {
             </table>
           </div>
         ) : (
-          <EmptyState>조회된 Room Finish가 없습니다.</EmptyState>
+          <EmptyState>{rows.length ? "No room finishes match the filters." : "No room finishes loaded."}</EmptyState>
         )}
       </section>
     </>
