@@ -1,10 +1,10 @@
 import { FormEvent, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
-import { searchDrawingSheets } from "../api/client";
+import { findRoomPageCandidates, searchDrawingSheets } from "../api/client";
 import { EmptyState, ErrorMessage } from "../components/ApiState";
 import { PageHeader } from "../components/PageHeader";
-import type { DrawingSheetRole, DrawingSheetSearchResult } from "../types/api";
+import type { DrawingSheetRole, DrawingSheetSearchResult, RoomPageCandidate } from "../types/api";
 
 const roleOptions: Array<DrawingSheetRole | ""> = [
   "",
@@ -35,8 +35,12 @@ export function SheetsPage() {
   const [sheetNo, setSheetNo] = useState("");
   const [keyword, setKeyword] = useState("");
   const [sheetRole, setSheetRole] = useState<DrawingSheetRole | "">("");
+  const [roomQuery, setRoomQuery] = useState("");
   const [results, setResults] = useState<DrawingSheetSearchResult[]>([]);
+  const [roomCandidates, setRoomCandidates] = useState<RoomPageCandidate[]>([]);
+  const [roomWarnings, setRoomWarnings] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRoomLoading, setIsRoomLoading] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
   const resolvedDrawingFileId = useMemo(() => {
@@ -61,9 +65,100 @@ export function SheetsPage() {
     }
   }
 
+  async function handleRoomSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    setIsRoomLoading(true);
+    setRoomWarnings([]);
+
+    try {
+      const id = parseDrawingFileId(drawingFileId);
+      const response = await findRoomPageCandidates(id, roomQuery);
+      setRoomCandidates(response.candidates);
+      setRoomWarnings(response.warnings);
+      setSearchParams({ drawingFileId: String(id) });
+    } catch (caught) {
+      setError(caught);
+    } finally {
+      setIsRoomLoading(false);
+    }
+  }
+
   return (
     <>
       <PageHeader title="도면 목록/검색" description="도면 번호, 키워드, 역할을 분리해 필요한 도면만 좁혀 조회합니다." />
+
+      <section className="panel">
+        <div className="section-heading">
+          <h2>Room page candidates</h2>
+          <span className="count-label">{roomCandidates.length} candidates</span>
+        </div>
+        <form className="toolbar-form compact" onSubmit={handleRoomSearch}>
+          <label>
+            <span>Drawing File ID</span>
+            <input value={drawingFileId} inputMode="numeric" onChange={(event) => setDrawingFileId(event.target.value)} />
+          </label>
+          <label>
+            <span>Room No / Name</span>
+            <input value={roomQuery} placeholder="119 or OFFICE" onChange={(event) => setRoomQuery(event.target.value)} />
+          </label>
+          <button type="submit" disabled={isRoomLoading || !roomQuery.trim()}>
+            {isRoomLoading ? "Finding..." : "Find room"}
+          </button>
+        </form>
+        {roomWarnings.length ? (
+          <div className="message message-warning">
+            <ul className="message-list">
+              {roomWarnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {roomCandidates.length ? (
+          <div className="table-wrap room-candidate-table">
+            <table>
+              <thead>
+                <tr>
+                  <th>Page</th>
+                  <th>Sheet</th>
+                  <th>Room</th>
+                  <th>Role</th>
+                  <th>Confidence</th>
+                  <th>Evidence</th>
+                  <th>Open</th>
+                </tr>
+              </thead>
+              <tbody>
+                {roomCandidates.map((candidate) => (
+                  <tr key={`${candidate.page_index}-${candidate.sheet_no ?? "unknown"}`}>
+                    <td>{candidate.page_index}</td>
+                    <td>
+                      <strong>{candidate.sheet_no ?? "-"}</strong>
+                      <span className="muted-cell">{candidate.sheet_title ?? ""}</span>
+                    </td>
+                    <td>
+                      <strong>{candidate.room_no ?? "-"}</strong>
+                      <span className="muted-cell">{candidate.room_name ?? ""}</span>
+                    </td>
+                    <td>{candidate.sheet_role}</td>
+                    <td>{candidate.confidence.toFixed(2)}</td>
+                    <td>{candidate.evidence.join("; ")}</td>
+                    <td>
+                      {resolvedDrawingFileId ? (
+                        <Link to={`/drawings/${resolvedDrawingFileId}/pages/${candidate.page_index}`}>Open</Link>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+        <ErrorMessage error={error} />
+      </section>
 
       <section className="panel">
         <form className="toolbar-form" onSubmit={handleSearch}>

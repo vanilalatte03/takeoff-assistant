@@ -1,7 +1,14 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { calculateMeasurement, updateMeasurement } from "../api/client";
-import type { CalculationType, Measurement, MeasurementCalculationInput, MeasurementType } from "../types/api";
+import type {
+  CalculationType,
+  DimensionAssistSelectedCandidate,
+  DimensionCandidateSlot,
+  Measurement,
+  MeasurementCalculationInput,
+  MeasurementType,
+} from "../types/api";
 import { ErrorMessage } from "./ApiState";
 import { StatusBadge } from "./StatusBadge";
 
@@ -83,17 +90,18 @@ function defaultCalculationType(measurement: Measurement): CalculationType {
 }
 
 function createDraft(measurement: Measurement): CalculationDraft {
+  const prefill = dimensionAssistPrefill(measurement);
   return {
     calculationType: defaultCalculationType(measurement),
-    width: "",
-    height: "",
-    length: "",
-    sideCount: "1",
+    width: prefill.width ?? "",
+    height: prefill.height ?? prefill.wall_height ?? "",
+    length: prefill.wall_length ?? "",
+    sideCount: prefill.side_multiplier ?? "1",
     count: "",
     customFormula: measurement.formula ?? "",
     customQuantity: measurement.quantity === null ? "" : String(measurement.quantity),
     customUnit: measurement.unit ?? "",
-    sourceSheets: measurement.source_sheets,
+    sourceSheets: prefill.sourceSheets ?? measurement.source_sheets,
     deductions: [],
   };
 }
@@ -151,6 +159,46 @@ function displayNumber(value: number) {
 
 function formulaNumber(value: string) {
   return String(Number(value));
+}
+
+function dimensionAssistPrefill(measurement: Measurement) {
+  const selectedCandidates = readSelectedDimensionCandidates(measurement);
+  const values: Partial<Record<DimensionCandidateSlot, string>> = {};
+  const sourceSheets: string[] = [];
+
+  selectedCandidates.forEach((candidate) => {
+    if (candidate.normalized_value !== null && candidate.normalized_value !== undefined) {
+      values[candidate.slot] = String(candidate.normalized_value);
+    }
+    if (candidate.source_sheet && !sourceSheets.includes(candidate.source_sheet)) {
+      sourceSheets.push(candidate.source_sheet);
+    }
+  });
+
+  return {
+    ...values,
+    sourceSheets: sourceSheets.length ? sourceSheets.join(", ") : undefined,
+  };
+}
+
+function readSelectedDimensionCandidates(measurement: Measurement): DimensionAssistSelectedCandidate[] {
+  const dimensionAssist = measurement.coordinates_json?.dimension_assist;
+  if (!dimensionAssist || typeof dimensionAssist !== "object" || !("selected_candidates" in dimensionAssist)) {
+    return [];
+  }
+  const selectedCandidates = (dimensionAssist as { selected_candidates?: unknown }).selected_candidates;
+  if (!Array.isArray(selectedCandidates)) {
+    return [];
+  }
+  return selectedCandidates.filter(isSelectedDimensionCandidate);
+}
+
+function isSelectedDimensionCandidate(value: unknown): value is DimensionAssistSelectedCandidate {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const candidate = value as { slot?: unknown; raw_text?: unknown };
+  return typeof candidate.slot === "string" && typeof candidate.raw_text === "string";
 }
 
 function deductionTotal(deductions: DeductionDraft[]) {
@@ -333,7 +381,7 @@ export function MeasurementCalculationForm({ measurement, onSaved }: Measurement
     setConfirmAfterSave(false);
     setMessage(null);
     setError(null);
-  }, [measurement?.id]);
+  }, [measurement?.id, measurement?.coordinates_json]);
 
   const preview = useMemo(() => (draft ? computePreview(draft) : null), [draft]);
 

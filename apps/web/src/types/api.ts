@@ -75,6 +75,66 @@ export interface DrawingSheetSearchResponse {
   results: DrawingSheetSearchResult[];
 }
 
+export interface RoomPageCandidate {
+  page_index: number;
+  sheet_no: string | null;
+  sheet_title: string | null;
+  sheet_role: DrawingSheetRole;
+  room_no: string | null;
+  room_name: string | null;
+  evidence: string[];
+  confidence: number;
+}
+
+export interface RoomPageCandidateResponse {
+  drawing_file_id: number;
+  room_query: string;
+  candidates: RoomPageCandidate[];
+  warnings: string[];
+}
+
+export interface DimensionRegion {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  image_width?: number | null;
+  image_height?: number | null;
+  zoom?: number | null;
+  pan_x?: number | null;
+  pan_y?: number | null;
+}
+
+export interface DimensionCandidate {
+  raw_text: string;
+  normalized_value: string | number | null;
+  normalized_unit: string | null;
+  unit_guess: string | null;
+  source_sheet: string | null;
+  page_index: number;
+  bbox: Record<string, number> | null;
+  confidence: number;
+  status: ReviewStatus;
+  warning: string | null;
+}
+
+export interface DimensionCandidateRequest {
+  region?: DimensionRegion | null;
+}
+
+export interface DimensionCandidateResponse {
+  drawing_file_id: number;
+  page_index: number;
+  candidates: DimensionCandidate[];
+  warnings: string[];
+}
+
+export type DimensionCandidateSlot = "width" | "height" | "wall_length" | "wall_height" | "side_multiplier";
+
+export interface DimensionAssistSelectedCandidate extends DimensionCandidate {
+  slot: DimensionCandidateSlot;
+}
+
 export interface DrawingFilePageProcessResult {
   drawing_file_id: number;
   page_count: number;

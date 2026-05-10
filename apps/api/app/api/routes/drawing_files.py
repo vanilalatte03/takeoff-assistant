@@ -9,18 +9,26 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.session import get_db
-from app.models import DrawingFile, DrawingSheet, DrawingSheetRole, Project, ReviewStatus
+from app.models import DrawingFile, DrawingSheet, DrawingSheetRole, Measurement, Project, ReviewStatus, RoomFinish
 from app.schemas import (
+    DimensionCandidate,
+    DimensionCandidateRequest,
+    DimensionCandidateResponse,
     DrawingFilePageProcessResult,
     DrawingFileRead,
     DrawingFileSheetClassificationResult,
     DrawingFileSheetDetectionResult,
     DrawingSheetSearchResponse,
     DrawingSheetSearchResult,
+    RoomPageCandidate,
+    RoomPageCandidateResponse,
 )
 from app.services import (
+    build_room_page_candidates,
     classify_and_apply_sheet_roles,
     detect_and_apply_sheet_metadata,
+    dimension_region_from_mapping,
+    extract_dimension_candidates,
     filter_sheets_by_keyword,
     filter_sheets_by_sheet_no,
 )
@@ -250,6 +258,114 @@ def search_drawing_file_sheets(
     )
 
 
+@router.get(
+    "/{drawing_file_id}/room-page-candidates",
+    response_model=RoomPageCandidateResponse,
+)
+def find_room_page_candidates(
+    drawing_file_id: int,
+    room_query: str = Query(..., min_length=1),
+    db: Session = Depends(get_db),
+) -> RoomPageCandidateResponse:
+    drawing_file = db.get(DrawingFile, drawing_file_id)
+    if drawing_file is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Drawing file not found.",
+        )
+
+    sheets = _sheets_for_drawing_file(db, drawing_file_id)
+    room_finishes = (
+        db.query(RoomFinish)
+        .filter(RoomFinish.project_id == drawing_file.project_id)
+        .order_by(RoomFinish.id)
+        .all()
+    )
+    measurements = (
+        db.query(Measurement)
+        .filter(Measurement.project_id == drawing_file.project_id)
+        .order_by(Measurement.id)
+        .all()
+    )
+    candidates, warnings = build_room_page_candidates(sheets, room_finishes, measurements, room_query)
+    return RoomPageCandidateResponse(
+        drawing_file_id=drawing_file.id,
+        room_query=room_query,
+        candidates=[
+            RoomPageCandidate(
+                page_index=candidate.page_index,
+                sheet_no=candidate.sheet_no,
+                sheet_title=candidate.sheet_title,
+                sheet_role=candidate.sheet_role,
+                room_no=candidate.room_no,
+                room_name=candidate.room_name,
+                evidence=candidate.evidence,
+                confidence=candidate.confidence,
+            )
+            for candidate in candidates
+        ],
+        warnings=warnings,
+    )
+
+
+@router.post(
+    "/{drawing_file_id}/pages/{page_index}/dimension-candidates",
+    response_model=DimensionCandidateResponse,
+)
+def get_dimension_candidates(
+    drawing_file_id: int,
+    page_index: int,
+    payload: DimensionCandidateRequest,
+    db: Session = Depends(get_db),
+) -> DimensionCandidateResponse:
+    drawing_file = db.get(DrawingFile, drawing_file_id)
+    if drawing_file is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Drawing file not found.",
+        )
+
+    sheet = (
+        db.query(DrawingSheet)
+        .filter(
+            DrawingSheet.drawing_file_id == drawing_file_id,
+            DrawingSheet.page_index == page_index,
+        )
+        .one_or_none()
+    )
+    if sheet is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Drawing sheet not found.",
+        )
+
+    candidates, warnings = extract_dimension_candidates(
+        drawing_file,
+        sheet,
+        dimension_region_from_mapping(payload.region),
+    )
+    return DimensionCandidateResponse(
+        drawing_file_id=drawing_file.id,
+        page_index=page_index,
+        candidates=[
+            DimensionCandidate(
+                raw_text=candidate.raw_text,
+                normalized_value=candidate.normalized_value,
+                normalized_unit=candidate.normalized_unit,
+                unit_guess=candidate.unit_guess,
+                source_sheet=candidate.source_sheet,
+                page_index=candidate.page_index,
+                bbox=candidate.bbox,
+                confidence=candidate.confidence,
+                status=candidate.status,
+                warning=candidate.warning,
+            )
+            for candidate in candidates
+        ],
+        warnings=warnings,
+    )
+
+
 @router.post(
     "/{drawing_file_id}/sheets/detect",
     response_model=DrawingFileSheetDetectionResult,
@@ -311,4 +427,13 @@ def classify_drawing_file_sheets(
     return DrawingFileSheetClassificationResult(
         drawing_file_id=drawing_file.id,
         sheets=classified_sheets,
+    )
+
+
+def _sheets_for_drawing_file(db: Session, drawing_file_id: int) -> list[DrawingSheet]:
+    return (
+        db.query(DrawingSheet)
+        .filter(DrawingSheet.drawing_file_id == drawing_file_id)
+        .order_by(DrawingSheet.page_index)
+        .all()
     )

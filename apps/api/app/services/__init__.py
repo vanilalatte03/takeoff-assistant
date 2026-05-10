@@ -4,6 +4,14 @@ from app.services.calculation_engine import (
     DeductionInput,
     calculate,
 )
+from app.services.dimension_assist import (
+    DimensionCandidateData,
+    DimensionRegionData,
+    RoomPageCandidateData,
+    build_room_page_candidates,
+    dimension_region_from_mapping,
+    extract_dimension_candidates,
+)
 from app.services.finish_schedule_extractor import (
     RoomFinishCandidate,
     extract_room_finish_candidates,
@@ -26,8 +34,12 @@ __all__ = [
     "CalculationInput",
     "CalculationResult",
     "DeductionInput",
+    "DimensionCandidateData",
+    "DimensionRegionData",
     "RoomFinishCandidate",
+    "RoomPageCandidateData",
     "SheetDetection",
+    "build_room_page_candidates",
     "build_measurement_candidate",
     "build_measurement_candidate_specs",
     "build_measurements_workbook",
@@ -37,7 +49,9 @@ __all__ = [
     "classify_sheet_role",
     "detect_and_apply_sheet_metadata",
     "detect_sheet_metadata",
+    "dimension_region_from_mapping",
     "existing_measurement_keys",
+    "extract_dimension_candidates",
     "extract_room_finish_candidates",
     "extract_room_finish_candidates_from_blocks",
     "filter_sheets_by_keyword",

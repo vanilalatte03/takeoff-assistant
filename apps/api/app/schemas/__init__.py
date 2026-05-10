@@ -1,4 +1,8 @@
 from app.schemas.drawing import (
+    DimensionCandidate,
+    DimensionCandidateRequest,
+    DimensionCandidateResponse,
+    DimensionRegion,
     DrawingFileCreate,
     DrawingFilePageProcessResult,
     DrawingFileRead,
@@ -8,6 +12,8 @@ from app.schemas.drawing import (
     DrawingSheetRead,
     DrawingSheetSearchResponse,
     DrawingSheetSearchResult,
+    RoomPageCandidate,
+    RoomPageCandidateResponse,
 )
 from app.schemas.measurement import (
     DrawingFileRoomStatusResponse,
@@ -31,6 +37,10 @@ from app.schemas.room_finish import (
 
 __all__ = [
     "DrawingFileCreate",
+    "DimensionCandidate",
+    "DimensionCandidateRequest",
+    "DimensionCandidateResponse",
+    "DimensionRegion",
     "DrawingFilePageProcessResult",
     "DrawingFileRead",
     "DrawingFileSheetClassificationResult",
@@ -39,6 +49,8 @@ __all__ = [
     "DrawingSheetRead",
     "DrawingSheetSearchResponse",
     "DrawingSheetSearchResult",
+    "RoomPageCandidate",
+    "RoomPageCandidateResponse",
     "DrawingFileRoomStatusResponse",
     "MeasurementCalculationInput",
     "MeasurementCreate",

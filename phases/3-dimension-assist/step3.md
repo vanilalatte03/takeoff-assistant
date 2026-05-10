@@ -14,10 +14,14 @@
 도면 상세 viewer에 치수 후보 탐색용 영역 선택 UI를 추가하라.
 
 - 기존 scale/line/rectangle/polygon/count click 모드를 유지한다.
-- 영역 선택 모드는 사각형 region을 만들고 candidate API를 호출한다.
+- `ManualMeasurementViewer`에 `DIMENSION_REGION` 측정 모드를 추가한다.
+- `DIMENSION_REGION` 모드는 두 점 사각형 선택으로 시작한다. 첫 번째 점은 시작점, 두 번째 점은 반대편 꼭짓점이다.
+- 영역 선택 모드는 rendered image pixel 좌표 기준 `x`, `y`, `width`, `height` region을 만들고 `getDimensionCandidates(...)`를 호출한다.
 - 후보 목록은 viewer side panel 안에서 표시한다.
 - 후보가 없으면 warning과 직접 입력 fallback 안내를 표시한다.
-- region coordinates, page index, image size, zoom/pan metadata를 state로 유지한다.
+- region coordinates, page index, image size, zoom/pan metadata를 state로 유지하고, 이후 계산 저장 근거로 넘길 수 있는 구조로 둔다.
+- 후보 목록에는 raw text, normalized value, unit guess, source sheet, confidence/status를 표시한다.
+- 후보 선택은 아직 Measurement를 저장하지 않고, step4에서 계산 입력 prefill로 연결할 수 있도록 선택 상태만 만든다.
 - 텍스트가 버튼/패널 밖으로 넘치지 않게 responsive layout을 확인한다.
 
 ## 인수 기준
@@ -30,8 +34,9 @@
 
 1. `npm run build` 또는 공식 check를 실행한다.
 2. 영역 선택 모드가 기존 측정 모드를 깨지 않는지 확인한다.
-3. 후보 표시/empty/warning 상태를 확인한다.
-4. `phases/3-dimension-assist/index.json`의 해당 단계를 업데이트한다.
+3. 후보 표시/empty/warning 상태와 긴 raw text overflow를 확인한다.
+4. 후보 선택이 자동 저장/자동 확정을 일으키지 않는지 확인한다.
+5. `phases/3-dimension-assist/index.json`의 해당 단계를 업데이트한다.
 
 ## 금지사항
 

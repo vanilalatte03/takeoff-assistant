@@ -599,3 +599,11 @@ Memo
 - 후보 선택만으로 Measurement가 자동 `CONFIRMED`된다.
 - 선택 영역이나 후보 raw text가 저장 근거에 남지 않는다.
 - 기존 scale/line/rectangle/polygon/count click 측정이 깨진다.
+
+### Implemented verification notes
+
+- Use the Sheets page Room page candidates form to search by Room No or Room Name, then open the selected drawing page.
+- In Drawing Detail, select `Dimension region`, click two corners, review candidate raw text, normalized value, source sheet, warnings, and fallback behavior.
+- Map candidates to Width, Height, Length, Wall height, or Side count, then save the dimension evidence to the selected Measurement.
+- In Measurement Review, load the drawing file and select that Measurement; calculation inputs should prefill from `coordinates_json.dimension_assist.selected_candidates`.
+- Saving the calculation must not mark the Measurement `CONFIRMED` unless the existing confirm-after-save checkbox is explicitly selected.
