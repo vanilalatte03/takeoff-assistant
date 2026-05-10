@@ -1,7 +1,7 @@
 import { MouseEvent, PointerEvent, useEffect, useMemo, useRef, useState } from "react";
 
-import { listMeasurements, updateMeasurement } from "../api/client";
-import type { Measurement } from "../types/api";
+import { getDimensionCandidates, listMeasurements, updateMeasurement } from "../api/client";
+import type { DimensionCandidate, DimensionCandidateSlot, DimensionRegion, Measurement } from "../types/api";
 import { ErrorMessage } from "./ApiState";
 
 type Point = {
@@ -14,7 +14,7 @@ type Size = {
   height: number;
 };
 
-type MeasurementMode = "SCALE" | "LINE_LENGTH" | "RECTANGLE_AREA" | "POLYGON_AREA" | "COUNT_CLICK";
+type MeasurementMode = "SCALE" | "LINE_LENGTH" | "RECTANGLE_AREA" | "POLYGON_AREA" | "COUNT_CLICK" | "DIMENSION_REGION";
 
 type MeasurementResult = {
   mode: MeasurementMode;
@@ -51,9 +51,18 @@ const modeLabels: Record<MeasurementMode, string> = {
   RECTANGLE_AREA: "사각형 면적",
   POLYGON_AREA: "다각형 면적",
   COUNT_CLICK: "개수 클릭",
+  DIMENSION_REGION: "Dimension region",
 };
 
-const measurementModes: MeasurementMode[] = ["SCALE", "LINE_LENGTH", "RECTANGLE_AREA", "POLYGON_AREA", "COUNT_CLICK"];
+const measurementModes: MeasurementMode[] = ["SCALE", "LINE_LENGTH", "RECTANGLE_AREA", "POLYGON_AREA", "COUNT_CLICK", "DIMENSION_REGION"];
+const dimensionSlots: DimensionCandidateSlot[] = ["width", "height", "wall_length", "wall_height", "side_multiplier"];
+const dimensionSlotLabels: Record<DimensionCandidateSlot, string> = {
+  width: "Width",
+  height: "Height",
+  wall_length: "Length",
+  wall_height: "Wall height",
+  side_multiplier: "Side count",
+};
 
 function modeLabel(mode: MeasurementMode) {
   return modeLabels[mode];
@@ -103,6 +112,48 @@ function measurementOptionLabel(measurement: Measurement) {
   return `[#${measurement.id}] ${room} / ${roomName} / ${category} / ${measurement.finish_code} / ${measurement.status}`;
 }
 
+function dimensionCandidateLabel(candidate: DimensionCandidate) {
+  const value = candidate.normalized_value === null ? "?" : `${candidate.normalized_value} ${candidate.normalized_unit ?? ""}`.trim();
+  return `${candidate.raw_text} -> ${value}`;
+}
+
+function normalizedDimensionValue(candidate: DimensionCandidate) {
+  return candidate.normalized_value === null || candidate.normalized_value === undefined ? "" : String(candidate.normalized_value);
+}
+
+function emptyDimensionSelections(): Record<DimensionCandidateSlot, DimensionCandidate | null> {
+  return {
+    width: null,
+    height: null,
+    wall_length: null,
+    wall_height: null,
+    side_multiplier: null,
+  };
+}
+
+function buildDimensionRegion(points: Point[], naturalSize: Size, zoom: number, pan: Point): DimensionRegion | null {
+  if (points.length < 2 || !naturalSize.width || !naturalSize.height) {
+    return null;
+  }
+  const [start, end] = points;
+  const width = Math.abs(end.x - start.x);
+  const height = Math.abs(end.y - start.y);
+  if (width < 1 || height < 1) {
+    return null;
+  }
+  return {
+    x: Math.min(start.x, end.x),
+    y: Math.min(start.y, end.y),
+    width,
+    height,
+    image_width: naturalSize.width,
+    image_height: naturalSize.height,
+    zoom,
+    pan_x: pan.x,
+    pan_y: pan.y,
+  };
+}
+
 function clampZoom(value: number) {
   return Math.min(Math.max(value, 0.1), 6);
 }
@@ -134,6 +185,11 @@ export function ManualMeasurementViewer({
   const [viewportSize, setViewportSize] = useState<Size>({ width: 0, height: 0 });
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState<Point>({ x: 16, y: 16 });
+  const [dimensionRegion, setDimensionRegion] = useState<DimensionRegion | null>(null);
+  const [dimensionCandidates, setDimensionCandidates] = useState<DimensionCandidate[]>([]);
+  const [dimensionSelections, setDimensionSelections] = useState<Record<DimensionCandidateSlot, DimensionCandidate | null>>(emptyDimensionSelections);
+  const [dimensionWarnings, setDimensionWarnings] = useState<string[]>([]);
+  const [isLoadingDimensions, setIsLoadingDimensions] = useState(false);
 
   const selectedMeasurement = useMemo(
     () => measurements.find((measurement) => String(measurement.id) === selectedMeasurementId) ?? null,
@@ -143,7 +199,7 @@ export function ManualMeasurementViewer({
     () => (mode === "COUNT_CLICK" ? measurements.filter((measurement) => measurement.measurement_type === "COUNT") : measurements),
     [measurements, mode],
   );
-  const canMeasure = scale !== null || mode === "SCALE" || mode === "COUNT_CLICK";
+  const canMeasure = scale !== null || mode === "SCALE" || mode === "COUNT_CLICK" || mode === "DIMENSION_REGION";
   const hasMeasurementCandidates = selectableMeasurements.length > 0;
 
   useEffect(() => {
@@ -176,7 +232,7 @@ export function ManualMeasurementViewer({
 
   useEffect(() => {
     drawOverlay();
-  }, [points, result, scale, mode, naturalSize, zoom]);
+  }, [points, result, scale, mode, naturalSize, zoom, dimensionRegion]);
 
   function viewportRect() {
     return viewportRef.current?.getBoundingClientRect() ?? null;
@@ -297,8 +353,14 @@ export function ManualMeasurementViewer({
       drawLine(context, result.points, "#1659c7");
     }
 
+    if (dimensionRegion) {
+      drawRegion(context, dimensionRegion, "#8d4cf6");
+    }
+
     if (mode === "COUNT_CLICK") {
       // Count mode should show independent click markers, not connect them as a line.
+    } else if (mode === "DIMENSION_REGION" && points.length === 2) {
+      drawRectangle(context, points, "#8d4cf6", false);
     } else if (mode === "RECTANGLE_AREA" && points.length === 2) {
       drawRectangle(context, points, "#1f6feb", false);
     } else if (mode === "POLYGON_AREA" && points.length > 1) {
@@ -363,6 +425,13 @@ export function ManualMeasurementViewer({
     context.stroke();
   }
 
+  function drawRegion(context: CanvasRenderingContext2D, region: DimensionRegion, color: string) {
+    context.fillStyle = "rgb(141 76 246 / 10%)";
+    context.fillRect(region.x, region.y, region.width, region.height);
+    context.strokeStyle = color;
+    context.strokeRect(region.x, region.y, region.width, region.height);
+  }
+
   function handlePanPointerDown(event: PointerEvent<HTMLDivElement>) {
     if (!isPanMode) {
       return;
@@ -409,6 +478,15 @@ export function ManualMeasurementViewer({
       return;
     }
 
+    if (mode === "DIMENSION_REGION") {
+      const nextPoints = [...points, point].slice(-2);
+      setPoints(nextPoints);
+      if (nextPoints.length === 2) {
+        void loadDimensionCandidates(nextPoints);
+      }
+      return;
+    }
+
     if (mode === "COUNT_CLICK") {
       const nextPoints = [...points, point];
       setPoints(nextPoints);
@@ -431,6 +509,101 @@ export function ManualMeasurementViewer({
     setPoints(nextPoints);
     if (nextPoints.length === 2) {
       buildResult(nextPoints);
+    }
+  }
+
+  async function loadDimensionCandidates(regionPoints: Point[]) {
+    const region = buildDimensionRegion(regionPoints, naturalSize, zoom, pan);
+    if (!region) {
+      setError(new Error("Select a valid region on the rendered page."));
+      return;
+    }
+
+    setDimensionRegion(region);
+    setDimensionCandidates([]);
+    setDimensionSelections(emptyDimensionSelections());
+    setDimensionWarnings([]);
+    setIsLoadingDimensions(true);
+    try {
+      const response = await getDimensionCandidates(drawingFileId, pageIndex, { region });
+      setDimensionCandidates(response.candidates);
+      setDimensionWarnings(response.warnings);
+      if (!response.candidates.length) {
+        setSaveMessage(null);
+      }
+    } catch (caught) {
+      setError(caught);
+    } finally {
+      setIsLoadingDimensions(false);
+    }
+  }
+
+  function assignDimensionCandidate(slot: DimensionCandidateSlot, candidate: DimensionCandidate) {
+    setDimensionSelections((current) => ({ ...current, [slot]: candidate }));
+    setSaveMessage(null);
+    setError(null);
+  }
+
+  async function saveDimensionAssistEvidence() {
+    setError(null);
+    setSaveMessage(null);
+    if (!selectedMeasurement) {
+      setError(new Error("Choose a Measurement candidate before saving dimension evidence."));
+      return;
+    }
+    if (!dimensionRegion) {
+      setError(new Error("Select a dimension region first."));
+      return;
+    }
+    const selectedCandidates = dimensionSlots.flatMap((slot) => {
+      const candidate = dimensionSelections[slot];
+      return candidate
+        ? [
+            {
+              ...candidate,
+              slot,
+            },
+          ]
+        : [];
+    });
+    if (!selectedCandidates.length) {
+      setError(new Error("Map at least one dimension candidate to a calculation input."));
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const nextCoordinates = {
+        ...(selectedMeasurement.coordinates_json ?? {}),
+        dimension_assist: {
+          region: {
+            drawing_file_id: drawingFileId,
+            page_index: pageIndex,
+            source_sheet_no: sourceSheetNo ?? null,
+            image: {
+              natural_width: naturalSize.width,
+              natural_height: naturalSize.height,
+            },
+            view_transform: {
+              zoom,
+              pan,
+            },
+            rect: dimensionRegion,
+          },
+          selected_candidates: selectedCandidates,
+        },
+      };
+      const saved = await updateMeasurement(selectedMeasurement.id, {
+        coordinates_json: nextCoordinates,
+        source_sheets: selectedMeasurement.source_sheets || sourceSheetNo || selectedCandidates[0]?.source_sheet || "",
+      });
+      setMeasurements((current) => current.map((measurement) => (measurement.id === saved.id ? saved : measurement)));
+      setSelectedMeasurementId(String(saved.id));
+      setSaveMessage(`Dimension evidence saved to Measurement ${saved.id}. Open Measurement Review to calculate with prefilled values.`);
+    } catch (caught) {
+      setError(caught);
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -511,6 +684,12 @@ export function ManualMeasurementViewer({
     setIsPanMode(false);
     setPoints([]);
     setResult(null);
+    if (nextMode !== "DIMENSION_REGION") {
+      setDimensionRegion(null);
+      setDimensionCandidates([]);
+      setDimensionSelections(emptyDimensionSelections());
+      setDimensionWarnings([]);
+    }
     setError(null);
     setSaveMessage(null);
   }
@@ -536,6 +715,12 @@ export function ManualMeasurementViewer({
   function clearMeasurement() {
     setPoints([]);
     setResult(null);
+    if (mode === "DIMENSION_REGION") {
+      setDimensionRegion(null);
+      setDimensionCandidates([]);
+      setDimensionSelections(emptyDimensionSelections());
+      setDimensionWarnings([]);
+    }
     setError(null);
     setSaveMessage(null);
   }
@@ -748,6 +933,69 @@ export function ManualMeasurementViewer({
             ))}
           </select>
         </label>
+
+        {mode === "DIMENSION_REGION" ? (
+          <div className="dimension-assist-panel">
+            <div className="section-heading compact-heading">
+              <h3>Dimension candidates</h3>
+              <span className="count-label">{dimensionCandidates.length}</span>
+            </div>
+            {dimensionRegion ? (
+              <span className="muted-cell">
+                Region {Math.round(dimensionRegion.x)}, {Math.round(dimensionRegion.y)} / {Math.round(dimensionRegion.width)} x{" "}
+                {Math.round(dimensionRegion.height)}
+              </span>
+            ) : null}
+            {isLoadingDimensions ? <div className="empty-state compact">Loading candidates...</div> : null}
+            {dimensionWarnings.length ? (
+              <div className="message message-warning">
+                <ul className="message-list">
+                  {dimensionWarnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {dimensionCandidates.length ? (
+              <div className="dimension-candidate-list">
+                {dimensionCandidates.map((candidate) => (
+                  <div className="dimension-candidate-card" key={`${candidate.raw_text}-${candidate.page_index}-${candidate.source_sheet ?? ""}`}>
+                    <strong>{dimensionCandidateLabel(candidate)}</strong>
+                    <span>
+                      {candidate.source_sheet ?? "-"} / confidence {candidate.confidence.toFixed(2)}
+                    </span>
+                    {candidate.warning ? <span className="message-inline-warning">{candidate.warning}</span> : null}
+                    <div className="button-row wrap compact-row">
+                      {dimensionSlots.map((slot) => (
+                        <button
+                          key={slot}
+                          type="button"
+                          className={dimensionSelections[slot]?.raw_text === candidate.raw_text ? "active" : "button-secondary"}
+                          disabled={!normalizedDimensionValue(candidate)}
+                          onClick={() => assignDimensionCandidate(slot, candidate)}
+                        >
+                          {dimensionSlotLabels[slot]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : !isLoadingDimensions && dimensionRegion ? (
+              <div className="empty-state compact">No candidates. Use manual calculation input as fallback.</div>
+            ) : null}
+            <div className="dimension-selection-summary">
+              {dimensionSlots.map((slot) => (
+                <span key={slot}>
+                  {dimensionSlotLabels[slot]}: {dimensionSelections[slot] ? dimensionCandidateLabel(dimensionSelections[slot]) : "-"}
+                </span>
+              ))}
+            </div>
+            <button type="button" onClick={saveDimensionAssistEvidence} disabled={isSaving || !selectedMeasurement || !dimensionRegion}>
+              {isSaving ? "Saving..." : "Save evidence for calculation"}
+            </button>
+          </div>
+        ) : null}
 
         {!hasMeasurementCandidates ? (
           <div className="empty-state compact">먼저 Room Finish 후보 추출과 Measurement 후보 생성을 실행하세요.</div>

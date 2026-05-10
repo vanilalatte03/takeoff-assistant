@@ -6,6 +6,8 @@ import type {
   DrawingFileSheetDetectionResult,
   DrawingSheetRole,
   DrawingSheetSearchResponse,
+  DimensionCandidateRequest,
+  DimensionCandidateResponse,
   Measurement,
   MeasurementCalculationInput,
   MeasurementGenerationResult,
@@ -13,6 +15,7 @@ import type {
   MeasurementUpdate,
   Project,
   ProjectCreate,
+  RoomPageCandidateResponse,
   RoomFinish,
   RoomFinishCreate,
   RoomFinishExtractionResult,
@@ -136,6 +139,19 @@ export function searchDrawingSheets(
     sheet_no: params.sheetNo,
     keyword: params.keyword,
     sheet_role: params.sheetRole || undefined,
+  });
+}
+
+export function findRoomPageCandidates(drawingFileId: number, roomQuery: string) {
+  return requestJson<RoomPageCandidateResponse>(`/drawing-files/${drawingFileId}/room-page-candidates`, undefined, {
+    room_query: roomQuery,
+  });
+}
+
+export function getDimensionCandidates(drawingFileId: number, pageIndex: number, payload: DimensionCandidateRequest) {
+  return requestJson<DimensionCandidateResponse>(`/drawing-files/${drawingFileId}/pages/${pageIndex}/dimension-candidates`, {
+    method: "POST",
+    body: JSON.stringify(payload),
   });
 }
 

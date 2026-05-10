@@ -72,13 +72,13 @@
 
 ## 3차 도면 위 치수 선택 보조 인수 기준
 
-- [ ] 사용자가 Room No 또는 Room Name으로 관련 도면/page 후보를 찾을 수 있다.
-- [ ] 사용자가 후보를 선택해 도면 상세 화면으로 이동할 수 있다.
-- [ ] 사용자가 도면 위에서 치수 후보 탐색 영역을 선택할 수 있다.
-- [ ] 선택 영역 또는 sheet text 기준 치수 후보가 표시된다.
-- [ ] 후보 raw text, normalized value, unit guess, source sheet가 표시된다.
-- [ ] 후보가 없거나 불확실하면 warning과 직접 입력 fallback이 표시된다.
-- [ ] 사용자가 후보를 width/height/length/wall_height 등 계산 입력값에 반영할 수 있다.
-- [ ] 후보 선택만으로 Measurement가 자동 `CONFIRMED`되지 않는다.
-- [ ] 저장된 Measurement가 선택 영역과 후보 근거를 `coordinates_json`에 유지한다.
-- [ ] 기존 scale/line/rectangle/polygon/count click 측정 흐름이 유지된다.
+- [x] 사용자가 Room No 또는 Room Name으로 관련 도면/page 후보를 찾을 수 있다.
+- [x] 사용자가 후보를 선택해 도면 상세 화면으로 이동할 수 있다.
+- [x] 사용자가 도면 위에서 치수 후보 탐색 영역을 선택할 수 있다.
+- [x] 선택 영역 또는 sheet text 기준 치수 후보가 표시된다.
+- [x] 후보 raw text, normalized value, unit guess, source sheet가 표시된다.
+- [x] 후보가 없거나 불확실하면 warning과 직접 입력 fallback이 표시된다.
+- [x] 사용자가 후보를 width/height/length/wall_height 등 계산 입력값에 반영할 수 있다.
+- [x] 후보 선택만으로 Measurement가 자동 `CONFIRMED`되지 않는다.
+- [x] 저장된 Measurement가 선택 영역과 후보 근거를 `coordinates_json`에 유지한다.
+- [x] 기존 scale/line/rectangle/polygon/count click 측정 흐름이 유지된다.

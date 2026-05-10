@@ -13,12 +13,16 @@
 
 도면 page 또는 선택 영역 기준 치수 텍스트 후보 API를 구현하라.
 
-- request는 최소 drawing_file_id, page_index, optional region coordinates를 받는다.
-- response는 raw text, normalized value, unit guess, source sheet, confidence/status, warning을 포함한다.
-- PDF text block 좌표를 사용할 수 있으면 region 주변 후보를 우선 반환한다.
-- 좌표가 없으면 DrawingSheet.text_content에서 치수형 숫자 후보를 추출한다.
-- `4200`, `4.2`, `2.7`, `2700`, `9'-0"` 같은 일반 치수 패턴을 테스트한다.
+- Backend에 `POST /drawing-files/{drawing_file_id}/pages/{page_index}/dimension-candidates` endpoint를 추가한다.
+- request shape는 `DimensionCandidateRequest`이며 optional `region: DimensionRegion | None`을 받는다.
+- response shape는 `DimensionCandidateResponse`이며 candidate는 `raw_text`, `normalized_value`, `normalized_unit`, `unit_guess`, `source_sheet`, `page_index`, `bbox`, `confidence`, `status`, `warning`을 포함한다.
+- `DimensionRegion`은 rendered image pixel 좌표 기준 `x`, `y`, `width`, `height`, optional `image_width`, `image_height`, `zoom`, `pan_x`, `pan_y`를 가진다.
+- stored PDF를 열어 `page.get_text("blocks")`를 우선 사용하고, block bbox를 rendered image 좌표계로 변환해 region과 겹치거나 가까운 후보를 먼저 반환한다.
+- PDF text block을 사용할 수 없거나 bbox 후보가 없으면 DrawingSheet.text_content에서 sheet-level 치수형 숫자 후보를 추출한다.
+- `4200`, `2700`은 mm로 보고 m로 정규화하고, `4.2`, `2.7`은 m로 보고, `9'-0"`는 feet-inch에서 m로 변환한다.
+- 일반 치수 패턴과 warning 경로를 테스트한다.
 - 후보 추출 실패는 warning으로 드러내고 직접 입력 fallback을 가능하게 한다.
+- Frontend type과 API client에 `DimensionRegion`, `DimensionCandidate`, `DimensionCandidateRequest`, `DimensionCandidateResponse`, `getDimensionCandidates(...)`를 추가한다.
 
 ## 인수 기준
 
@@ -29,9 +33,10 @@
 ## 검증 절차
 
 1. API unit/API test를 추가한다.
-2. 후보 정규화와 warning 경로를 테스트한다.
-3. 기존 sheet search/page processing 테스트가 통과하는지 확인한다.
-4. `phases/3-dimension-assist/index.json`의 해당 단계를 업데이트한다.
+2. mm/m/feet-inch 후보 정규화와 warning 경로를 테스트한다.
+3. region bbox 후보와 sheet text fallback 후보를 테스트한다.
+4. 기존 sheet search/page processing 테스트가 통과하는지 확인한다.
+5. `phases/3-dimension-assist/index.json`의 해당 단계를 업데이트한다.
 
 ## 금지사항
 

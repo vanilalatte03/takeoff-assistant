@@ -1,6 +1,7 @@
 from datetime import datetime
+from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.enums import DrawingSheetRole, ReviewStatus
 
@@ -71,3 +72,57 @@ class DrawingSheetSearchResult(BaseModel):
 class DrawingSheetSearchResponse(BaseModel):
     drawing_file_id: int
     results: list[DrawingSheetSearchResult]
+
+
+class RoomPageCandidate(BaseModel):
+    page_index: int
+    sheet_no: str | None = None
+    sheet_title: str | None = None
+    sheet_role: DrawingSheetRole
+    room_no: str | None = None
+    room_name: str | None = None
+    evidence: list[str] = Field(default_factory=list)
+    confidence: float
+
+
+class RoomPageCandidateResponse(BaseModel):
+    drawing_file_id: int
+    room_query: str
+    candidates: list[RoomPageCandidate]
+    warnings: list[str] = Field(default_factory=list)
+
+
+class DimensionRegion(BaseModel):
+    x: float
+    y: float
+    width: float
+    height: float
+    image_width: float | None = None
+    image_height: float | None = None
+    zoom: float | None = None
+    pan_x: float | None = None
+    pan_y: float | None = None
+
+
+class DimensionCandidateRequest(BaseModel):
+    region: DimensionRegion | None = None
+
+
+class DimensionCandidate(BaseModel):
+    raw_text: str
+    normalized_value: Decimal | None = None
+    normalized_unit: str | None = None
+    unit_guess: str | None = None
+    source_sheet: str | None = None
+    page_index: int
+    bbox: dict[str, float] | None = None
+    confidence: float
+    status: ReviewStatus = ReviewStatus.NEEDS_REVIEW
+    warning: str | None = None
+
+
+class DimensionCandidateResponse(BaseModel):
+    drawing_file_id: int
+    page_index: int
+    candidates: list[DimensionCandidate]
+    warnings: list[str] = Field(default_factory=list)

@@ -160,6 +160,21 @@ export function MeasurementsPage() {
   function handleMeasurementSaved(saved: Measurement) {
     setRows((current) => current.map((row) => (row.id === saved.id ? saved : row)));
     setSelectedMeasurementId(saved.id);
+    setMergeTargetId((current) => {
+      if (String(saved.id) === current && (saved.status === "CONFIRMED" || saved.status === "REJECTED")) {
+        const nextTarget = rows.find((row) => row.id !== saved.id && row.status !== "CONFIRMED" && row.status !== "REJECTED");
+        return nextTarget ? String(nextTarget.id) : "";
+      }
+      return current;
+    });
+    setMergeSourceIds((current) => current.filter((idValue) => idValue !== saved.id || (saved.status !== "CONFIRMED" && saved.status !== "REJECTED")));
+    if (drawingFileId.trim()) {
+      try {
+        void loadRoomStatus(parseDrawingFileId(drawingFileId)).catch(setError);
+      } catch {
+        // The load form owns validation feedback for invalid drawing file IDs.
+      }
+    }
   }
 
   async function handleReject(row: Measurement) {

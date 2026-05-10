@@ -689,6 +689,68 @@ td select {
   line-height: 1.45;
 }
 
+.dimension-assist-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #dbe3ec;
+  border-radius: 6px;
+  background: #fbfcfd;
+}
+
+.dimension-candidate-list {
+  display: grid;
+  max-height: 280px;
+  gap: 8px;
+  overflow: auto;
+}
+
+.dimension-candidate-card {
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid #dbe3ec;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.dimension-candidate-card strong,
+.dimension-selection-summary span {
+  overflow-wrap: anywhere;
+}
+
+.dimension-candidate-card span,
+.dimension-selection-summary {
+  color: #657485;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.dimension-candidate-card button {
+  min-height: 32px;
+  padding: 0 9px;
+  font-size: 12px;
+}
+
+.dimension-candidate-card button.active {
+  border-color: #1f6feb;
+  color: #ffffff;
+  background: #1f6feb;
+}
+
+.compact-row {
+  margin-top: 4px;
+}
+
+.message-inline-warning {
+  color: #7a4b00;
+}
+
+.dimension-selection-summary {
+  display: grid;
+  gap: 4px;
+}
+
 .calculation-panel {
   display: grid;
   gap: 16px;
