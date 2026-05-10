@@ -1,0 +1,36 @@
+{
+  "project": "takeoff-assistant",
+  "phase": "3-dimension-assist",
+  "steps": [
+    {
+      "step": 0,
+      "name": "docs-and-contracts",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "room-navigation",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "dimension-candidate-api",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "region-selection-ui",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "calculation-integration",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "smoke-test-docs",
+      "status": "pending"
+    }
+  ]
+}

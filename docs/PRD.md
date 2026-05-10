@@ -59,15 +59,18 @@ PDF 업로드부터 Excel export까지 기본 흐름이 동작해야 합니다.
 - 도면 위 클릭 개수 측정으로 `COUNT` 산출 저장
 - 기존 Summary/Details에 더해 검수용 Review sheet를 가진 Excel export
 
+현재 2차 상세 스펙과 완료 기록은 `docs/archive/REVIEW_MVP_SPEC.md`와 `phases/archive/2-review-mvp/`에 보관합니다.
+
 ### 3차: 도면 위 치수 선택 보조
 
-자동 치수선 판독이 아니라 사용자가 선택한 방 주변 치수 후보를 추천하는 반자동 흐름을 목표로 합니다.
+자동 치수선 판독이 아니라 사용자가 선택한 방 주변 치수 후보를 추천하는 반자동 흐름을 목표로 합니다. 상세 스펙은 `docs/DIMENSION_ASSIST_MVP_SPEC.md`를 기준으로 합니다.
 
 - Room No 검색 후 관련 페이지 이동
 - 사용자가 방 영역 드래그
 - 주변 숫자 치수 후보 표시
 - 사용자가 가로/세로 후보 선택
 - 선택값으로 면적/둘레 계산
+- 선택 영역과 후보 raw text를 `coordinates_json`에 남겨 추적성 유지
 
 ### 4차: 산출 예시 데이터셋 확장
 

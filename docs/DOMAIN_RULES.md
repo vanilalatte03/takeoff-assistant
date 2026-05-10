@@ -72,6 +72,17 @@ PARTITION_AREA
 COUNT
 ```
 
+## Dimension candidate rules
+
+3차 도면 위 치수 선택 보조는 자동 치수선 판독이 아니라 사용자 검수형 후보 표시입니다.
+
+- 사용자가 선택한 region 또는 관련 sheet text에서 치수형 숫자 후보를 찾습니다.
+- 후보 raw text는 수정/무시 가능해야 하며, 자동으로 확정 수량이 되지 않습니다.
+- `4200`, `2700`처럼 mm로 보이는 값은 UI에서 m 환산 후보를 함께 보여줄 수 있습니다.
+- `4.2`, `2.7`처럼 m로 보이는 값은 그대로 m 후보로 취급할 수 있습니다.
+- `9'-0"` 같은 imperial 표기는 후보로 표시하되, 자동 변환이 불확실하면 `NEEDS_REVIEW`로 둡니다.
+- 선택한 후보와 선택 영역은 `coordinates_json`에 추적 가능하게 남깁니다.
+
 ## Calculation formula
 
 ### FLOOR_AREA

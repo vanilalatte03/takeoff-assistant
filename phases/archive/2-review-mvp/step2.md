@@ -1,11 +1,11 @@
-# 단계 2: room-finish-review
+﻿# 단계 2: room-finish-review
 
 ## 읽어야 할 파일
 
 먼저 아래 파일들을 읽고 RoomFinish 추출/수정 흐름을 파악하라:
 
 - `/AGENTS.md`
-- `/docs/REVIEW_MVP_SPEC.md`
+- `/docs/archive/REVIEW_MVP_SPEC.md`
 - `/docs/DOMAIN_RULES.md`
 - `/docs/ARCHITECTURE.md`
 - `/docs/ADR.md`
@@ -45,12 +45,12 @@ RoomFinish 검수 속도를 높이고 추출 실패를 명확하게 처리하라
    - `CONFIRMED` Measurement 보호가 동작하는가?
    - extraction 0건 경로가 warning을 반환하는가?
    - `COMMANDS.md`의 검증 명령을 실행했는가?
-3. 결과에 따라 `phases/2-review-mvp/index.json`의 해당 단계를 업데이트한다:
+3. 결과에 따라 `phases/archive/2-review-mvp/index.json`의 해당 단계를 업데이트한다:
    - 성공 -> `"status": "completed"`, `"summary": "RoomFinish 필터, warning, reject 흐름 추가"`
    - 수정 3회 시도 후에도 실패 -> `"status": "error"`, `"error_message": "구체적 에러 내용"`
    - 사용자 개입 필요 -> `"status": "blocked"`, `"blocked_reason": "구체적 사유"` 후 즉시 중단
 
-검증 또는 리뷰가 통과하지 못하면 `issues/2-review-mvp/issue-N.md`에 재현 명령, 핵심 에러, 수정 방향을 기록하고 fix step을 추가한다.
+검증 또는 리뷰가 통과하지 못하면 `issues/archive/2-review-mvp/issue-N.md`에 재현 명령, 핵심 에러, 수정 방향을 기록하고 fix step을 추가한다.
 
 ## 금지사항
 

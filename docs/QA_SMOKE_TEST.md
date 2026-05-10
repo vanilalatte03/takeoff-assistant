@@ -578,3 +578,24 @@ Memo
 - `CONFIRMED` row가 reject 또는 merge로 자동 변경된다.
 - reject 동작이 DB row를 물리 삭제한다.
 - Excel Details에서 계산식이나 도면 출처를 확인할 수 없다.
+
+## 17. 3차 준비: 도면 위 치수 선택 보조
+
+3차 구현 후 이 섹션을 실제 UI 기준으로 확장한다. 현재 기준 목표 흐름은 `docs/DIMENSION_ASSIST_MVP_SPEC.md`를 따른다.
+
+### 예정 절차
+
+1. Room No 또는 Room Name으로 관련 도면/page 후보를 검색한다.
+2. 후보를 선택해 도면 상세 화면으로 이동한다.
+3. 치수 후보 탐색 영역을 도면 위에서 선택한다.
+4. 표시된 치수 후보의 raw text, normalized value, unit guess, source sheet를 확인한다.
+5. 후보를 width/height/length/wall_height 입력에 반영한다.
+6. 계산 저장 후 `coordinates_json`에 region과 후보 근거가 남았는지 확인한다.
+
+### 예정 실패 기준
+
+- Room No 검색 결과가 조용히 빈 성공으로만 끝난다.
+- 후보가 없는 경우 warning 또는 직접 입력 fallback이 없다.
+- 후보 선택만으로 Measurement가 자동 `CONFIRMED`된다.
+- 선택 영역이나 후보 raw text가 저장 근거에 남지 않는다.
+- 기존 scale/line/rectangle/polygon/count click 측정이 깨진다.

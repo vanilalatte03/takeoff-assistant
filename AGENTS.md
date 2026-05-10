@@ -6,6 +6,7 @@
 
 - 제품 방향: `docs/PRD.md`
 - 현재 MVP 범위와 제외 범위: `docs/MVP_SPEC.md`
+- 현재 phase 상세 스펙: 필요 시 `docs/DIMENSION_ASSIST_MVP_SPEC.md`
 - 도메인 규칙, sheet role, 계산식: `docs/DOMAIN_RULES.md`
 - 아키텍처, 데이터 흐름, 저장 계약: `docs/ARCHITECTURE.md`, `docs/ADR.md`
 - 실행 명령과 로컬 환경: `docs/COMMANDS.md`, `.codex/project-profile.json`

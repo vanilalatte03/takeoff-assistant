@@ -1,11 +1,11 @@
-# 단계 6: smoke-test-docs
+﻿# 단계 6: smoke-test-docs
 
 ## 읽어야 할 파일
 
 먼저 아래 파일들을 읽고 기존 수동 검증 절차와 2차 인수 기준을 파악하라:
 
 - `/AGENTS.md`
-- `/docs/REVIEW_MVP_SPEC.md`
+- `/docs/archive/REVIEW_MVP_SPEC.md`
 - `/docs/ACCEPTANCE_CHECKLIST.md`
 - `/docs/QA_SMOKE_TEST.md`
 - `/docs/SAMPLE_DATA_GUIDE.md`
@@ -38,12 +38,12 @@
    - 2차 acceptance checklist와 누락 없이 대응하는가?
    - 기밀 sample PDF를 새로 커밋하도록 지시하지 않는가?
    - `COMMANDS.md`의 검증 명령을 실행했는가?
-3. 결과에 따라 `phases/2-review-mvp/index.json`의 해당 단계를 업데이트한다:
+3. 결과에 따라 `phases/archive/2-review-mvp/index.json`의 해당 단계를 업데이트한다:
    - 성공 -> `"status": "completed"`, `"summary": "2차 수동 smoke test 문서 갱신"`
    - 수정 3회 시도 후에도 실패 -> `"status": "error"`, `"error_message": "구체적 에러 내용"`
    - 사용자 개입 필요 -> `"status": "blocked"`, `"blocked_reason": "구체적 사유"` 후 즉시 중단
 
-검증 또는 리뷰가 통과하지 못하면 `issues/2-review-mvp/issue-N.md`에 재현 명령, 핵심 에러, 수정 방향을 기록하고 fix step을 추가한다.
+검증 또는 리뷰가 통과하지 못하면 `issues/archive/2-review-mvp/issue-N.md`에 재현 명령, 핵심 에러, 수정 방향을 기록하고 fix step을 추가한다.
 
 ## 금지사항
 
