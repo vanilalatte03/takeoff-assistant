@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.db.init_db import init_db
 from app.db.session import get_db
 from app.main import app
-from app.models import DrawingFile, DrawingSheet, DrawingSheetRole, Project, ReviewStatus, RoomFinish
+from app.models import DrawingFile, DrawingSheet, DrawingSheetRole, Measurement, MeasurementType, Project, ReviewStatus, RoomFinish
 
 
 @pytest.fixture()
@@ -130,6 +130,22 @@ def test_extract_room_finishes_returns_empty_when_auto_extraction_fails(client_w
 
     assert response.status_code == 200
     assert response.json()["room_finishes"] == []
+    assert "Manual Room Finish input is required" in response.json()["warnings"][0]
+
+
+def test_list_room_finishes_supports_review_filters(client_with_db) -> None:
+    client, _, drawing_file_id, _ = client_with_db
+    assert client.post(f"/drawing-files/{drawing_file_id}/room-finishes/extract").status_code == 200
+
+    response = client.get(
+        f"/drawing-files/{drawing_file_id}/room-finishes",
+        params={"room_no": "110", "room_name": "office", "finish_code": "VCT", "status": "NEEDS_REVIEW"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload) == 1
+    assert payload[0]["room_no"] == "110"
 
 
 def test_create_room_finish_allows_manual_input_after_failed_extraction(client_with_db) -> None:
@@ -202,6 +218,64 @@ def test_update_room_finish_allows_user_corrections(client_with_db) -> None:
     assert payload["floor_finish"] == "LVT"
     assert payload["height"] == "8'-6\""
     assert payload["status"] == ReviewStatus.DRAFT
+
+
+def test_reject_room_finish_cascades_to_unconfirmed_measurements(client_with_db) -> None:
+    client, session_factory, drawing_file_id, _ = client_with_db
+    extract_response = client.post(f"/drawing-files/{drawing_file_id}/room-finishes/extract")
+    room_finish_id = extract_response.json()["room_finishes"][0]["id"]
+    with session_factory() as session:
+        room_finish = session.get(RoomFinish, room_finish_id)
+        assert room_finish is not None
+        measurement = Measurement(
+            project_id=room_finish.project_id,
+            room_finish_id=room_finish.id,
+            room_no=room_finish.room_no,
+            room_name=room_finish.room_name,
+            category="FLOOR",
+            finish_code="VCT",
+            measurement_type=MeasurementType.FLOOR_AREA,
+            status=ReviewStatus.NEEDS_REVIEW,
+        )
+        session.add(measurement)
+        session.commit()
+        measurement_id = measurement.id
+
+    response = client.delete(f"/room-finishes/{room_finish_id}")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == ReviewStatus.REJECTED
+    with session_factory() as session:
+        measurement = session.get(Measurement, measurement_id)
+        assert measurement is not None
+        assert measurement.status == ReviewStatus.REJECTED
+
+
+def test_reject_room_finish_blocks_confirmed_measurements(client_with_db) -> None:
+    client, session_factory, drawing_file_id, _ = client_with_db
+    extract_response = client.post(f"/drawing-files/{drawing_file_id}/room-finishes/extract")
+    room_finish_id = extract_response.json()["room_finishes"][0]["id"]
+    with session_factory() as session:
+        room_finish = session.get(RoomFinish, room_finish_id)
+        assert room_finish is not None
+        session.add(
+            Measurement(
+                project_id=room_finish.project_id,
+                room_finish_id=room_finish.id,
+                room_no=room_finish.room_no,
+                room_name=room_finish.room_name,
+                category="FLOOR",
+                finish_code="VCT",
+                measurement_type=MeasurementType.FLOOR_AREA,
+                status=ReviewStatus.CONFIRMED,
+            )
+        )
+        session.commit()
+
+    response = client.delete(f"/room-finishes/{room_finish_id}")
+
+    assert response.status_code == 409
+    assert "confirmed measurements" in response.json()["detail"]["message"]
 
 
 def test_list_room_finishes_for_drawing_file(client_with_db) -> None:

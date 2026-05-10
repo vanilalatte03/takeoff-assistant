@@ -1,0 +1,15 @@
+{
+  "phases": [
+    {
+      "dir": "3-dimension-assist",
+      "status": "pending"
+    }
+  ],
+  "archived_phases": [
+    {
+      "dir": "archive/2-review-mvp",
+      "status": "completed",
+      "summary": "2차 실제 업무 검수형 MVP 완료"
+    }
+  ]
+}

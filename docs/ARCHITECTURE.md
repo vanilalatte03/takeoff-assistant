@@ -36,6 +36,7 @@ scripts/                Codex template check, guard, doctor, phase runner
 - `apps/api/app/api/routes`: HTTP 경계입니다. 요청 형태를 검증하고 DB row를 로드한 뒤 service를 호출하고 schema 또는 file을 반환합니다.
 - `apps/api/app/models`: project, drawing file, drawing sheet, room finish, measurement의 persistence 경계입니다.
 - `apps/api/app/services`: sheet detection/classification, finish schedule extraction, candidate generation, quantity calculation, Excel export를 위한 결정적 domain logic입니다.
+- 3차에서는 dimension text candidate extraction 같은 치수 후보 탐색 helper도 `apps/api/app/services` 아래에 둡니다.
 - `apps/web/src/api`: frontend API 경계입니다.
 - `apps/web/src/pages`: upload, sheet search, room finish correction, drawing page measurement, measurement export 워크플로우 화면입니다.
 - `apps/web/src/components/ManualMeasurementViewer.tsx`: 사용자가 주도하는 measurement geometry와 scale calibration UI입니다.
@@ -49,17 +50,36 @@ PDF upload
   -> RoomFinish 추출 또는 수동 생성
   -> Measurement candidate 생성
   -> 직접 계산 또는 manual canvas measurement
+  -> 3차에서는 사용자가 선택한 region 주변 dimension candidate를 계산 입력 보조로 사용
   -> formula/quantity/source/status가 있는 Measurement row
-  -> Excel Summary와 Details export
+  -> Excel Summary, Details, Review export
 ```
 
 ## 상태와 저장소
 - Persistent database state: project, drawing file, drawing sheet, room finish candidate, measurement
 - Persistent file state: uploaded PDF, rendered PNG, generated Excel file
 - Measurement geometry: `Measurement.coordinates_json`에 JSON으로 저장
+- Dimension assist region과 선택한 후보 근거도 `Measurement.coordinates_json`에 JSON으로 저장
 - Deductions: `Measurement.deductions_json`에 JSON으로 저장
 - Review state: `DRAFT`, `NEEDS_REVIEW`, `CONFIRMED`, `REJECTED`
 - Migration: 아직 migration framework는 없으며, MVP test는 schema를 직접 초기화합니다.
+
+## Measurement 저장 계약
+모든 계산된 수량은 다음 정보를 추적 가능하게 저장해야 합니다.
+
+- project_id
+- room_no, room_name
+- category
+- finish_code
+- measurement_type
+- formula
+- quantity
+- unit
+- source_sheets
+- status
+- memo
+- coordinates_json, 도면 위에서 측정한 경우
+- deductions_json, 공제를 적용한 경우
 
 ## 오류 처리
 - 유효하지 않은 PDF upload는 HTTP 400을 반환합니다.

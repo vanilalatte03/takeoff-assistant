@@ -74,3 +74,4 @@ class RoomFinishRead(RoomFinishBase):
 class RoomFinishExtractionResult(BaseModel):
     drawing_file_id: int
     room_finishes: list[RoomFinishRead]
+    warnings: list[str] = []

@@ -2,9 +2,11 @@
 
 ## 현재 MVP 범위
 
-이 문서는 현재 코드가 목표로 하는 **1차 기능 동작 MVP**의 범위를 정의합니다. 큰 제품 방향과 단계별 확장은 `docs/PRD.md`를 기준으로 봅니다.
+이 문서는 현재 코드가 제공하는 **1차 기능 동작 MVP + 2차 실제 업무 검수형 MVP**의 범위를 정의합니다. 큰 제품 방향과 단계별 확장은 `docs/PRD.md`를 기준으로 봅니다.
 
 현재 MVP의 목표는 PDF 도면 세트를 업로드한 뒤, 도면 검색과 마감 산출 후보 생성, 직접 치수 입력/수동 측정, 계산, Excel export까지 이어지는 검수 가능한 흐름을 제공하는 것입니다.
+
+완료된 2차 상세 스펙은 `docs/archive/REVIEW_MVP_SPEC.md`에 보관합니다. 다음 작업 단위는 `docs/DIMENSION_ASSIST_MVP_SPEC.md`의 **3차 도면 위 치수 선택 보조**입니다.
 
 ## 사용자
 
@@ -22,7 +24,7 @@ PDF 업로드
 -> Measurement 후보 생성
 -> 치수 입력 또는 페이지 이미지 위 수동 측정
 -> 계산 저장 및 상태 관리
--> Summary/Details Excel export
+-> Summary/Details/Review Excel export
 ```
 
 ## 포함 기능
@@ -85,6 +87,7 @@ RoomFinish row에서 draft Measurement 후보를 생성합니다.
 - line length 측정
 - rectangle area 측정
 - polygon area 측정
+- count click 측정
 
 지원하는 계산:
 
@@ -110,20 +113,43 @@ RoomFinish row에서 draft Measurement 후보를 생성합니다.
 
 ### 6. Excel export
 
-Excel export는 두 worksheet를 만듭니다.
+Excel export는 세 worksheet를 만듭니다.
 
-- `Summary`: category, finish_code, unit 기준 합계
-- `Details`: room, category, code, formula, quantity, unit, source_sheets, status, memo
+- `Summary`: category, finish_code, description, unit, total_quantity, source_sheets
+- `Details`: no, room_no, room_name, category, finish_code, measurement_type, formula, quantity, unit, source_sheets, status, memo
+- `Review`: rejected row를 제외한 검수용 room/category/code/formula/quantity/status/memo 목록
 
-## 현재 구현상 남은 MVP 보강점
+## 2차 검수형 MVP 완료 항목
 
-아래 항목은 현재 코드가 일부 지원하거나 다음 보강 대상으로 남아 있습니다.
+- 업로드 전 Project 선택/생성
+- RoomFinish 필터, 빠른 저장, `REJECTED` 처리
+- Measurement 수정, `REJECTED` 처리, 제한된 병합
+- `CONFIRMED` row 보호
+- 방별 계산 상태 표시
+- 도면 위 count click 측정
+- 기존 Summary/Details에 검수용 Review sheet 추가
 
-- RoomFinish delete API/UI
-- Measurement 후보 삭제/병합 UI
-- page image 위 count click 측정
-- 추출 실패가 빈 결과로 끝날 때 사용자에게 더 명확한 `NEEDS_REVIEW` 작업 단서 제공
+## 현재 구현상 남은 보강점
+
+아래 항목은 다음 phase의 보강 대상으로 남아 있습니다.
+
+- Sheet metadata 수정 UI/API
+- Room No 기반 도면 상세 이동
+- 도면 위 영역 선택 기반 치수 후보 표시
+- 선택한 치수 후보를 계산 입력값으로 반영
 - 실제 아버님 샘플 PDF 기준 end-to-end 수동 smoke test 반복
+
+## 다음 MVP: 3차 도면 위 치수 선택 보조
+
+3차 MVP는 자동 치수선 판독이 아니라 사용자가 선택한 방 주변 치수 후보를 고르는 반자동 흐름입니다. 상세 스펙은 `docs/DIMENSION_ASSIST_MVP_SPEC.md`를 기준으로 합니다.
+
+- Room No 검색 후 관련 페이지 이동
+- 사용자가 방 영역 드래그
+- 주변 숫자 치수 후보 표시
+- 사용자가 가로/세로/높이 후보 선택
+- 선택값으로 면적/둘레/벽체 계산 입력 보조
+
+3차 MVP에서도 AI API, 자동 치수선 판독, 자동 방 경계 인식은 제외합니다.
 
 ## MVP 제외 범위
 
@@ -149,4 +175,5 @@ Excel export는 두 worksheet를 만듭니다.
 5. Measurement 후보를 만들고 사용자가 계산값을 저장할 수 있습니다.
 6. `4.2 * 2.7 = 11.34 m2`, `(4.2 + 2.7) * 2 = 13.80 m`, `4.2 * 4.6 * 2 = 38.64 m2` 같은 기준 계산이 통과합니다.
 7. Summary와 Details Excel workbook을 export할 수 있습니다.
-8. 모든 계산 수량이 source sheet number를 유지합니다.
+8. Review sheet가 rejected row를 제외한 검수용 목록을 제공합니다.
+9. 모든 계산 수량이 source sheet number를 유지합니다.

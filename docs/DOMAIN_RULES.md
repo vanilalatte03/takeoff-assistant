@@ -8,6 +8,10 @@
 finish schedule -> floor plan / reflected ceiling plan -> partition plan/details -> quantity table
 ```
 
+일반적인 산출 한 줄은 약 세 장의 도면을 함께 봅니다. Room 번호는 finish schedule에서 확인하고, room 치수는 보통 floor plan에서 가져옵니다. 치수가 표시되지 않으면 사용자가 scale 기준으로 측정할 수 있어야 합니다.
+
+최종 출력은 room 중심보다 finish code 중심으로 정리합니다. 단, 추적성을 위해 room, 계산식, source sheet는 Details에 남깁니다.
+
 알려진 예:
 
 ```text
@@ -67,6 +71,17 @@ WALL_AREA
 PARTITION_AREA
 COUNT
 ```
+
+## Dimension candidate rules
+
+3차 도면 위 치수 선택 보조는 자동 치수선 판독이 아니라 사용자 검수형 후보 표시입니다.
+
+- 사용자가 선택한 region 또는 관련 sheet text에서 치수형 숫자 후보를 찾습니다.
+- 후보 raw text는 수정/무시 가능해야 하며, 자동으로 확정 수량이 되지 않습니다.
+- `4200`, `2700`처럼 mm로 보이는 값은 UI에서 m 환산 후보를 함께 보여줄 수 있습니다.
+- `4.2`, `2.7`처럼 m로 보이는 값은 그대로 m 후보로 취급할 수 있습니다.
+- `9'-0"` 같은 imperial 표기는 후보로 표시하되, 자동 변환이 불확실하면 `NEEDS_REVIEW`로 둡니다.
+- 선택한 후보와 선택 영역은 `coordinates_json`에 추적 가능하게 남깁니다.
 
 ## Calculation formula
 
@@ -161,6 +176,15 @@ Formula:
 quantity = count
 unit = EA
 ```
+
+## 예외와 공제 규칙
+
+- Ceiling area에는 column, wall, opening 공제가 필요할 수 있습니다.
+- Floor area에는 fixed furniture, equipment, wall thickness 공제가 필요할 수 있습니다.
+- Wall finish area에는 door/window 공제가 필요할 수 있습니다.
+- Wall height는 room마다 다를 수 있습니다.
+- Toilet wall tile은 전체 wall height가 아니라 partial height를 사용할 수 있습니다.
+- GWB partition은 양면 산출이 흔하지만, 다른 항목은 별도 설정이 없으면 보통 한쪽 면만 산출합니다.
 
 ## 반올림
 

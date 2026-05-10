@@ -1,0 +1,48 @@
+{
+  "project": "takeoff-assistant",
+  "phase": "2-review-mvp",
+  "steps": [
+    {
+      "step": 0,
+      "name": "docs-and-contracts",
+      "status": "completed",
+      "summary": "2차 MVP API contract와 문서 기준 정리"
+    },
+    {
+      "step": 1,
+      "name": "project-workflow",
+      "status": "completed",
+      "summary": "업로드 화면 Project 선택/생성 흐름 추가"
+    },
+    {
+      "step": 2,
+      "name": "room-finish-review",
+      "status": "completed",
+      "summary": "RoomFinish 필터, warning, reject 흐름 추가"
+    },
+    {
+      "step": 3,
+      "name": "measurement-review",
+      "status": "completed",
+      "summary": "Measurement reject/merge와 방별 상태 UI 추가"
+    },
+    {
+      "step": 4,
+      "name": "count-measurement",
+      "status": "completed",
+      "summary": "도면 위 count click 측정 저장 추가"
+    },
+    {
+      "step": 5,
+      "name": "excel-review-export",
+      "status": "completed",
+      "summary": "Excel export에 검수용 Review sheet 추가"
+    },
+    {
+      "step": 6,
+      "name": "smoke-test-docs",
+      "status": "completed",
+      "summary": "2차 수동 smoke test 문서 갱신"
+    }
+  ]
+}

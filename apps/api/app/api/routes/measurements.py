@@ -1,10 +1,20 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from decimal import Decimal
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.models import CalculationType, DrawingFile, DrawingSheet, Measurement, MeasurementType, ReviewStatus, RoomFinish
-from app.schemas import MeasurementCalculationInput, MeasurementGenerationResult, MeasurementRead, MeasurementUpdate
+from app.schemas import (
+    DrawingFileRoomStatusResponse,
+    MeasurementCalculationInput,
+    MeasurementGenerationResult,
+    MeasurementMergeRequest,
+    MeasurementRead,
+    MeasurementUpdate,
+    RoomMeasurementStatus,
+)
 from app.services import (
     CalculationInput,
     DeductionInput,
@@ -72,6 +82,11 @@ def generate_measurement_candidates(
 )
 def list_measurements(
     drawing_file_id: int,
+    room_no: str | None = Query(default=None),
+    category: str | None = Query(default=None),
+    code: str | None = Query(default=None),
+    measurement_type: MeasurementType | None = Query(default=None),
+    status_filter: ReviewStatus | None = Query(default=None, alias="status"),
     db: Session = Depends(get_db),
 ) -> list[Measurement]:
     drawing_file = db.get(DrawingFile, drawing_file_id)
@@ -81,7 +96,60 @@ def list_measurements(
             detail="Drawing file not found.",
         )
 
-    return _measurements_for_drawing_file(db, drawing_file)
+    return _measurements_for_drawing_file(
+        db,
+        drawing_file,
+        room_no=room_no,
+        category=category,
+        code=code,
+        measurement_type=measurement_type,
+        status_filter=status_filter,
+    )
+
+
+@router.get(
+    "/drawing-files/{drawing_file_id}/room-status",
+    response_model=DrawingFileRoomStatusResponse,
+)
+def get_drawing_file_room_status(
+    drawing_file_id: int,
+    db: Session = Depends(get_db),
+) -> DrawingFileRoomStatusResponse:
+    drawing_file = db.get(DrawingFile, drawing_file_id)
+    if drawing_file is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Drawing file not found.",
+        )
+
+    room_finishes = _room_finishes_for_drawing_file(db, drawing_file)
+    measurements = _measurements_for_drawing_file(db, drawing_file)
+    measurements_by_room_finish: dict[int, list[Measurement]] = {}
+    for measurement in measurements:
+        if measurement.room_finish_id is None:
+            continue
+        measurements_by_room_finish.setdefault(measurement.room_finish_id, []).append(measurement)
+
+    rooms: list[RoomMeasurementStatus] = []
+    for room_finish in room_finishes:
+        active_measurements = [
+            measurement
+            for measurement in measurements_by_room_finish.get(room_finish.id, [])
+            if measurement.status != ReviewStatus.REJECTED
+        ]
+        rooms.append(
+            RoomMeasurementStatus(
+                room_no=room_finish.room_no,
+                room_name=room_finish.room_name,
+                total_count=len(active_measurements),
+                quantity_count=sum(1 for measurement in active_measurements if measurement.quantity is not None),
+                confirmed_count=sum(1 for measurement in active_measurements if measurement.status == ReviewStatus.CONFIRMED),
+                needs_review_count=sum(1 for measurement in active_measurements if measurement.status == ReviewStatus.NEEDS_REVIEW),
+                missing_quantity_count=sum(1 for measurement in active_measurements if measurement.quantity is None),
+            )
+        )
+
+    return DrawingFileRoomStatusResponse(drawing_file_id=drawing_file.id, rooms=rooms)
 
 
 @router.get("/drawing-files/{drawing_file_id}/measurements/export")
@@ -197,6 +265,73 @@ def update_measurement(
     return measurement
 
 
+@router.delete("/measurements/{measurement_id}", response_model=MeasurementRead)
+def reject_measurement(
+    measurement_id: int,
+    db: Session = Depends(get_db),
+) -> Measurement:
+    measurement = db.get(Measurement, measurement_id)
+    if measurement is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Measurement not found.",
+        )
+    if measurement.status == ReviewStatus.CONFIRMED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Confirmed measurements cannot be rejected.",
+        )
+
+    measurement.status = ReviewStatus.REJECTED
+    db.commit()
+    db.refresh(measurement)
+    return measurement
+
+
+@router.post("/measurements/merge", response_model=MeasurementRead)
+def merge_measurements(
+    payload: MeasurementMergeRequest,
+    db: Session = Depends(get_db),
+) -> Measurement:
+    if not payload.source_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="source_ids must contain at least one measurement id.",
+        )
+    if payload.target_id in payload.source_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="target_id cannot also be a source id.",
+        )
+
+    source_ids = list(dict.fromkeys(payload.source_ids))
+    measurements = (
+        db.query(Measurement)
+        .filter(Measurement.id.in_([payload.target_id, *source_ids]))
+        .order_by(Measurement.id)
+        .all()
+    )
+    by_id = {measurement.id: measurement for measurement in measurements}
+    target = by_id.get(payload.target_id)
+    sources = [by_id.get(source_id) for source_id in source_ids]
+    missing_ids = [source_id for source_id, measurement in zip(source_ids, sources) if measurement is None]
+    if target is None:
+        missing_ids.insert(0, payload.target_id)
+    if missing_ids:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"message": "Measurement not found.", "measurement_ids": missing_ids},
+        )
+
+    source_measurements = [measurement for measurement in sources if measurement is not None]
+    _validate_merge_rows(target, source_measurements)
+    _apply_measurement_merge(target, source_measurements)
+
+    db.commit()
+    db.refresh(target)
+    return target
+
+
 def _room_finishes_for_drawing_file(db: Session, drawing_file: DrawingFile) -> list[RoomFinish]:
     return (
         db.query(RoomFinish)
@@ -210,20 +345,115 @@ def _room_finishes_for_drawing_file(db: Session, drawing_file: DrawingFile) -> l
     )
 
 
-def _measurements_for_drawing_file(db: Session, drawing_file: DrawingFile) -> list[Measurement]:
+def _measurements_for_drawing_file(
+    db: Session,
+    drawing_file: DrawingFile,
+    *,
+    room_no: str | None = None,
+    category: str | None = None,
+    code: str | None = None,
+    measurement_type: MeasurementType | None = None,
+    status_filter: ReviewStatus | None = None,
+) -> list[Measurement]:
     room_finish_ids = [row.id for row in _room_finishes_for_drawing_file(db, drawing_file)]
     if not room_finish_ids:
         return []
 
-    return (
+    query = (
         db.query(Measurement)
         .filter(
             Measurement.project_id == drawing_file.project_id,
             Measurement.room_finish_id.in_(room_finish_ids),
         )
-        .order_by(Measurement.id)
-        .all()
     )
+    if room_no:
+        query = query.filter(Measurement.room_no.ilike(f"%{room_no.strip()}%"))
+    if category:
+        query = query.filter(Measurement.category.ilike(f"%{category.strip()}%"))
+    if code:
+        query = query.filter(Measurement.finish_code.ilike(f"%{code.strip()}%"))
+    if measurement_type is not None:
+        query = query.filter(Measurement.measurement_type == measurement_type)
+    if status_filter is not None:
+        query = query.filter(Measurement.status == status_filter)
+
+    return query.order_by(Measurement.id).all()
+
+
+def _validate_merge_rows(target: Measurement, sources: list[Measurement]) -> None:
+    all_measurements = [target, *sources]
+    confirmed_ids = [measurement.id for measurement in all_measurements if measurement.status == ReviewStatus.CONFIRMED]
+    if confirmed_ids:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": "Confirmed measurements cannot be merged.",
+                "measurement_ids": confirmed_ids,
+            },
+        )
+    rejected_ids = [measurement.id for measurement in all_measurements if measurement.status == ReviewStatus.REJECTED]
+    if rejected_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": "Rejected measurements cannot be merged.",
+                "measurement_ids": rejected_ids,
+            },
+        )
+
+    target_key = _merge_key(target)
+    mismatched_ids = [measurement.id for measurement in sources if _merge_key(measurement) != target_key]
+    if mismatched_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": "Measurements can only be merged when room, category, code, type, and unit match.",
+                "measurement_ids": mismatched_ids,
+            },
+        )
+
+
+def _apply_measurement_merge(target: Measurement, sources: list[Measurement]) -> None:
+    merge_rows = [target, *sources]
+    if all(measurement.quantity is not None for measurement in merge_rows):
+        target.quantity = sum((measurement.quantity for measurement in merge_rows), Decimal("0.00"))
+
+    formulas = [f"#{measurement.id}: {measurement.formula}" for measurement in merge_rows if measurement.formula]
+    if formulas:
+        target.formula = " + ".join(formulas)
+
+    target.source_sheets = _merge_csv_values(measurement.source_sheets for measurement in merge_rows)
+    target.memo = _merge_memo_values(merge_rows)
+    target.status = ReviewStatus.DRAFT
+    for source in sources:
+        source.status = ReviewStatus.REJECTED
+
+
+def _merge_key(measurement: Measurement) -> tuple[str | None, str, str, MeasurementType, str | None]:
+    return (
+        measurement.room_no,
+        measurement.category,
+        measurement.finish_code,
+        measurement.measurement_type,
+        measurement.unit,
+    )
+
+
+def _merge_csv_values(values: list[str] | tuple[str, ...] | object) -> str:
+    merged: list[str] = []
+    for value in values:
+        if not isinstance(value, str):
+            continue
+        for item in value.replace(";", ",").split(","):
+            normalized = item.strip()
+            if normalized and normalized not in merged:
+                merged.append(normalized)
+    return ", ".join(merged)
+
+
+def _merge_memo_values(measurements: list[Measurement]) -> str | None:
+    parts = [f"#{measurement.id}: {measurement.memo}" for measurement in measurements if measurement.memo]
+    return "\n".join(parts) if parts else None
 
 
 def _allowed_calculation_types(measurement_type: MeasurementType) -> tuple[CalculationType, ...]:

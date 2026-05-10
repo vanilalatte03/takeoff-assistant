@@ -38,6 +38,18 @@ export interface DrawingFile {
   created_at: string;
 }
 
+export interface Project {
+  id: number;
+  name: string;
+  description: string | null;
+  created_at?: string;
+}
+
+export interface ProjectCreate {
+  name: string;
+  description?: string | null;
+}
+
 export interface DrawingSheet {
   id: number;
   drawing_file_id: number;
@@ -147,6 +159,7 @@ export type RoomFinishCreate = Partial<
 export interface RoomFinishExtractionResult {
   drawing_file_id: number;
   room_finishes: RoomFinish[];
+  warnings: string[];
 }
 
 export interface Measurement {
@@ -173,6 +186,26 @@ export interface Measurement {
 export interface MeasurementGenerationResult {
   drawing_file_id: number;
   measurements: Measurement[];
+}
+
+export interface MeasurementMergeInput {
+  target_id: number;
+  source_ids: number[];
+}
+
+export interface RoomMeasurementStatus {
+  room_no: string | null;
+  room_name: string | null;
+  total_count: number;
+  quantity_count: number;
+  confirmed_count: number;
+  needs_review_count: number;
+  missing_quantity_count: number;
+}
+
+export interface DrawingFileRoomStatus {
+  drawing_file_id: number;
+  rooms: RoomMeasurementStatus[];
 }
 
 export interface MeasurementUpdate {

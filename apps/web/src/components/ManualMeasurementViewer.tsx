@@ -14,12 +14,12 @@ type Size = {
   height: number;
 };
 
-type MeasurementMode = "SCALE" | "LINE_LENGTH" | "RECTANGLE_AREA" | "POLYGON_AREA";
+type MeasurementMode = "SCALE" | "LINE_LENGTH" | "RECTANGLE_AREA" | "POLYGON_AREA" | "COUNT_CLICK";
 
 type MeasurementResult = {
   mode: MeasurementMode;
   quantity: number;
-  unit: "m" | "m2";
+  unit: "m" | "m2" | "EA";
   formula: string;
   points: Point[];
 };
@@ -50,7 +50,14 @@ const modeLabels: Record<MeasurementMode, string> = {
   LINE_LENGTH: "선 길이",
   RECTANGLE_AREA: "사각형 면적",
   POLYGON_AREA: "다각형 면적",
+  COUNT_CLICK: "개수 클릭",
 };
+
+const measurementModes: MeasurementMode[] = ["SCALE", "LINE_LENGTH", "RECTANGLE_AREA", "POLYGON_AREA", "COUNT_CLICK"];
+
+function modeLabel(mode: MeasurementMode) {
+  return modeLabels[mode];
+}
 
 function distance(first: Point, second: Point) {
   return Math.hypot(second.x - first.x, second.y - first.y);
@@ -132,8 +139,12 @@ export function ManualMeasurementViewer({
     () => measurements.find((measurement) => String(measurement.id) === selectedMeasurementId) ?? null,
     [measurements, selectedMeasurementId],
   );
-  const canMeasure = scale !== null || mode === "SCALE";
-  const hasMeasurementCandidates = measurements.length > 0;
+  const selectableMeasurements = useMemo(
+    () => (mode === "COUNT_CLICK" ? measurements.filter((measurement) => measurement.measurement_type === "COUNT") : measurements),
+    [measurements, mode],
+  );
+  const canMeasure = scale !== null || mode === "SCALE" || mode === "COUNT_CLICK";
+  const hasMeasurementCandidates = selectableMeasurements.length > 0;
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -286,7 +297,9 @@ export function ManualMeasurementViewer({
       drawLine(context, result.points, "#1659c7");
     }
 
-    if (mode === "RECTANGLE_AREA" && points.length === 2) {
+    if (mode === "COUNT_CLICK") {
+      // Count mode should show independent click markers, not connect them as a line.
+    } else if (mode === "RECTANGLE_AREA" && points.length === 2) {
       drawRectangle(context, points, "#1f6feb", false);
     } else if (mode === "POLYGON_AREA" && points.length > 1) {
       drawPolygon(context, points, "#1f6feb", false);
@@ -396,6 +409,19 @@ export function ManualMeasurementViewer({
       return;
     }
 
+    if (mode === "COUNT_CLICK") {
+      const nextPoints = [...points, point];
+      setPoints(nextPoints);
+      setResult({
+        mode,
+        quantity: nextPoints.length,
+        unit: "EA",
+        formula: `count(${nextPoints.length})`,
+        points: nextPoints,
+      });
+      return;
+    }
+
     if (mode === "POLYGON_AREA") {
       setPoints((current) => [...current, point]);
       return;
@@ -478,6 +504,10 @@ export function ManualMeasurementViewer({
 
   function handleModeChange(nextMode: MeasurementMode) {
     setMode(nextMode);
+    if (nextMode === "COUNT_CLICK") {
+      const firstCountMeasurement = measurements.find((measurement) => measurement.measurement_type === "COUNT");
+      setSelectedMeasurementId(firstCountMeasurement ? String(firstCountMeasurement.id) : "");
+    }
     setIsPanMode(false);
     setPoints([]);
     setResult(null);
@@ -486,8 +516,21 @@ export function ManualMeasurementViewer({
   }
 
   function undoPoint() {
-    setPoints((current) => current.slice(0, -1));
-    setResult(null);
+    setPoints((current) => {
+      const nextPoints = current.slice(0, -1);
+      if (mode === "COUNT_CLICK" && nextPoints.length) {
+        setResult({
+          mode,
+          quantity: nextPoints.length,
+          unit: "EA",
+          formula: `count(${nextPoints.length})`,
+          points: nextPoints,
+        });
+      } else {
+        setResult(null);
+      }
+      return nextPoints;
+    });
   }
 
   function clearMeasurement() {
@@ -509,15 +552,24 @@ export function ManualMeasurementViewer({
       return;
     }
 
+    if (result.mode === "COUNT_CLICK" && selectedMeasurement.measurement_type !== "COUNT") {
+      setError(new Error("개수 클릭 결과는 COUNT Measurement 후보에만 저장할 수 있습니다."));
+      return;
+    }
+    if (result.mode !== "COUNT_CLICK" && selectedMeasurement.measurement_type === "COUNT") {
+      setError(new Error("COUNT Measurement에는 개수 클릭 모드 결과를 저장해 주세요."));
+      return;
+    }
+
     setIsSaving(true);
     try {
       const saved = await updateMeasurement(selectedMeasurement.id, {
         formula: result.formula,
-        quantity: result.quantity.toFixed(2),
+        quantity: result.mode === "COUNT_CLICK" ? String(result.quantity) : result.quantity.toFixed(2),
         unit: result.unit,
         source_sheets: selectedMeasurement.source_sheets || sourceSheetNo || "",
         status: "DRAFT",
-        memo: `manual ${modeLabels[result.mode]} measurement`,
+        memo: `manual ${modeLabel(result.mode)} measurement`,
         coordinates_json: {
           measurement_mode: result.mode,
           drawing_file_id: drawingFileId,
@@ -541,7 +593,7 @@ export function ManualMeasurementViewer({
           point_keys: result.points.map(pointKey),
           result: {
             formula: result.formula,
-            quantity: result.quantity.toFixed(2),
+            quantity: result.mode === "COUNT_CLICK" ? String(result.quantity) : result.quantity.toFixed(2),
             unit: result.unit,
           },
         },
@@ -621,14 +673,14 @@ export function ManualMeasurementViewer({
         <div className="tool-group">
           <span className="tool-label">측정 모드</span>
           <div className="segmented-control">
-            {(Object.keys(modeLabels) as MeasurementMode[]).map((item) => (
+            {measurementModes.map((item) => (
               <button
                 key={item}
                 type="button"
                 className={mode === item ? "active" : "button-secondary"}
                 onClick={() => handleModeChange(item)}
               >
-                {modeLabels[item]}
+                {modeLabel(item)}
               </button>
             ))}
           </div>
@@ -672,7 +724,13 @@ export function ManualMeasurementViewer({
               <span>{result.formula}</span>
             </>
           ) : (
-            <span>{mode === "POLYGON_AREA" ? "점을 찍은 뒤 다각형 완료를 누르세요." : "두 점을 선택하세요."}</span>
+            <span>
+              {mode === "POLYGON_AREA"
+                ? "점을 찍은 뒤 다각형 완료를 누르세요."
+                : mode === "COUNT_CLICK"
+                  ? "개수만큼 위치를 클릭하세요."
+                  : "두 점을 선택하세요."}
+            </span>
           )}
         </div>
 
@@ -683,7 +741,7 @@ export function ManualMeasurementViewer({
             onChange={(event) => setSelectedMeasurementId(event.target.value)}
             disabled={isLoadingMeasurements || !hasMeasurementCandidates}
           >
-            {measurements.map((measurement) => (
+            {selectableMeasurements.map((measurement) => (
               <option key={measurement.id} value={measurement.id}>
                 {measurementOptionLabel(measurement)}
               </option>
