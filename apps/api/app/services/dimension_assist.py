@@ -26,6 +26,10 @@ DIMENSION_PATTERN = re.compile(
     """,
     re.VERBOSE,
 )
+ROOM_IDENTIFIER_PREFIX_PATTERN = re.compile(
+    r"(?:\bROOM\s*(?:NO\.?|NUMBER|#)?|\bRM\.?\s*(?:NO\.?|#)?)\s*$",
+    re.IGNORECASE,
+)
 
 
 @dataclass(frozen=True)
@@ -227,6 +231,8 @@ def _dimension_matches_to_candidates(
         raw_text = match.group(0).strip()
         if not raw_text:
             continue
+        if match.group("number") is not None and _looks_like_room_identifier(text, match):
+            continue
         normalized_value, unit_guess, warning = _normalize_dimension(raw_text, match)
         if normalized_value is None and not warning:
             continue
@@ -245,6 +251,11 @@ def _dimension_matches_to_candidates(
             )
         )
     return candidates
+
+
+def _looks_like_room_identifier(text: str, match: re.Match[str]) -> bool:
+    prefix = text[max(0, match.start() - 32) : match.start()]
+    return ROOM_IDENTIFIER_PREFIX_PATTERN.search(prefix) is not None
 
 
 def _normalize_dimension(raw_text: str, match: re.Match[str]) -> tuple[Decimal | None, str | None, str | None]:

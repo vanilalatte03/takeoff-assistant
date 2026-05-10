@@ -136,11 +136,16 @@ function buildDimensionRegion(points: Point[], naturalSize: Size, zoom: number, 
     return null;
   }
   const [start, end] = points;
+  const width = Math.abs(end.x - start.x);
+  const height = Math.abs(end.y - start.y);
+  if (width < 1 || height < 1) {
+    return null;
+  }
   return {
     x: Math.min(start.x, end.x),
     y: Math.min(start.y, end.y),
-    width: Math.abs(end.x - start.x),
-    height: Math.abs(end.y - start.y),
+    width,
+    height,
     image_width: naturalSize.width,
     image_height: naturalSize.height,
     zoom,

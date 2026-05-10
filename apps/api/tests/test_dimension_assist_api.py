@@ -156,6 +156,7 @@ def test_dimension_candidates_extracts_sheet_text_fallback_values(client_with_di
     assert response.status_code == 200
     payload = response.json()
     values_by_raw_text = {candidate["raw_text"]: Decimal(str(candidate["normalized_value"])) for candidate in payload["candidates"]}
+    assert "119" not in values_by_raw_text
     assert values_by_raw_text["4200"] == Decimal("4.200")
     assert values_by_raw_text["2700"] == Decimal("2.700")
     assert values_by_raw_text["9'-0\""] == Decimal("2.743")
