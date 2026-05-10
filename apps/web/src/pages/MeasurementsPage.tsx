@@ -67,6 +67,10 @@ export function MeasurementsPage() {
     () => rows.find((row) => row.id === selectedMeasurementId) ?? null,
     [rows, selectedMeasurementId],
   );
+  const mergeableRows = useMemo(
+    () => rows.filter((row) => row.status !== "CONFIRMED" && row.status !== "REJECTED"),
+    [rows],
+  );
   const filteredRows = useMemo(
     () =>
       rows.filter((row) => {
@@ -95,7 +99,13 @@ export function MeasurementsPage() {
       }
       return loaded[0]?.id ?? null;
     });
-    setMergeTargetId((current) => current || (loaded[0] ? String(loaded[0].id) : ""));
+    setMergeTargetId((current) => {
+      if (current && loaded.some((row) => String(row.id) === current && row.status !== "CONFIRMED" && row.status !== "REJECTED")) {
+        return current;
+      }
+      const firstMergeable = loaded.find((row) => row.status !== "CONFIRMED" && row.status !== "REJECTED");
+      return firstMergeable ? String(firstMergeable.id) : "";
+    });
     setMergeSourceIds((current) => current.filter((idValue) => loaded.some((row) => row.id === idValue)));
     return loaded;
   }
@@ -280,8 +290,8 @@ export function MeasurementsPage() {
         <div className="merge-grid">
           <label>
             <span>Target</span>
-            <select value={mergeTargetId} onChange={(event) => setMergeTargetId(event.target.value)} disabled={!rows.length}>
-              {rows.map((row) => (
+            <select value={mergeTargetId} onChange={(event) => setMergeTargetId(event.target.value)} disabled={!mergeableRows.length}>
+              {mergeableRows.map((row) => (
                 <option key={row.id} value={row.id}>
                   #{row.id} {row.room_no ?? "-"} {row.category} {row.finish_code}
                 </option>
@@ -380,7 +390,7 @@ export function MeasurementsPage() {
                         <input
                           type="checkbox"
                           checked={mergeSourceIds.includes(row.id)}
-                          disabled={String(row.id) === mergeTargetId}
+                          disabled={String(row.id) === mergeTargetId || row.status === "CONFIRMED" || row.status === "REJECTED"}
                           onChange={(event) => toggleMergeSource(row.id, event.target.checked)}
                         />
                         <span>Source</span>
@@ -404,7 +414,7 @@ export function MeasurementsPage() {
                       <button
                         type="button"
                         className="button-secondary compact-button danger-button"
-                        disabled={pendingRowId === row.id || row.status === "REJECTED"}
+                        disabled={pendingRowId === row.id || row.status === "CONFIRMED" || row.status === "REJECTED"}
                         onClick={() => handleReject(row)}
                       >
                         Reject

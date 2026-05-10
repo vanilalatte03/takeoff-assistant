@@ -391,6 +391,15 @@ def _validate_merge_rows(target: Measurement, sources: list[Measurement]) -> Non
                 "measurement_ids": confirmed_ids,
             },
         )
+    rejected_ids = [measurement.id for measurement in all_measurements if measurement.status == ReviewStatus.REJECTED]
+    if rejected_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": "Rejected measurements cannot be merged.",
+                "measurement_ids": rejected_ids,
+            },
+        )
 
     target_key = _merge_key(target)
     mismatched_ids = [measurement.id for measurement in sources if _merge_key(measurement) != target_key]

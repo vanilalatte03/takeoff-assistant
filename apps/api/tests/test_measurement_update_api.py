@@ -257,6 +257,33 @@ def test_merge_measurements_requires_matching_contract(client_with_measurement) 
     assert "room, category, code, type, and unit match" in response.json()["detail"]["message"]
 
 
+def test_merge_measurements_blocks_rejected_rows(client_with_measurement) -> None:
+    client, session_factory, measurement_id = client_with_measurement
+    with session_factory() as session:
+        target = session.get(Measurement, measurement_id)
+        assert target is not None
+        target.unit = "m2"
+        source = Measurement(
+            project_id=target.project_id,
+            room_no=target.room_no,
+            room_name=target.room_name,
+            category=target.category,
+            finish_code=target.finish_code,
+            measurement_type=target.measurement_type,
+            unit=target.unit,
+            status=ReviewStatus.REJECTED,
+        )
+        session.add(source)
+        session.commit()
+        source_id = source.id
+
+    response = client.post("/measurements/merge", json={"target_id": measurement_id, "source_ids": [source_id]})
+
+    assert response.status_code == 400
+    assert response.json()["detail"]["message"] == "Rejected measurements cannot be merged."
+    assert response.json()["detail"]["measurement_ids"] == [source_id]
+
+
 def test_drawing_file_room_status_summarizes_active_measurements(tmp_path) -> None:
     database_url = f"sqlite:///{(tmp_path / 'room_status_test.db').as_posix()}"
     engine = create_engine(database_url, connect_args={"check_same_thread": False})

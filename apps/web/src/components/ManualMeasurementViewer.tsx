@@ -297,7 +297,9 @@ export function ManualMeasurementViewer({
       drawLine(context, result.points, "#1659c7");
     }
 
-    if (mode === "RECTANGLE_AREA" && points.length === 2) {
+    if (mode === "COUNT_CLICK") {
+      // Count mode should show independent click markers, not connect them as a line.
+    } else if (mode === "RECTANGLE_AREA" && points.length === 2) {
       drawRectangle(context, points, "#1f6feb", false);
     } else if (mode === "POLYGON_AREA" && points.length > 1) {
       drawPolygon(context, points, "#1f6feb", false);
