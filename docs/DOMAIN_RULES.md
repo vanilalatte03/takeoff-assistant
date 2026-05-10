@@ -1,63 +1,63 @@
 # DOMAIN_RULES.md
 
-## Drawing workflow assumptions
+## 도면 워크플로우 가정
 
-Typical workflow:
+일반적인 흐름:
 
 ```text
 finish schedule -> floor plan / reflected ceiling plan -> partition plan/details -> quantity table
 ```
 
-Known examples:
+알려진 예:
 
 ```text
-Ceiling area: finish schedule + reflected ceiling plan or floor plan
+Ceiling area: finish schedule + reflected ceiling plan 또는 floor plan
 Floor area: finish schedule + floor plan
-Wall finish: finish schedule + floor plan or partition plan
+Wall finish: finish schedule + floor plan 또는 partition plan
 Partition: partition plan + partition detail
 Door/window count: numbering plan + schedule
 ```
 
-Do not hard-code a specific sheet number for a role. Examples:
+역할 판단에 특정 sheet number를 하드코딩하지 않습니다. 예:
 
-- Finish schedule may be AE401, AE402, AE601, or another sheet.
-- Floor plan may be AE101 or another sheet.
-- Partition plan/details may be AE102, AE103, AE405, AE406, AE407, etc.
+- Finish schedule은 AE401, AE402, AE601 또는 다른 sheet일 수 있습니다.
+- Floor plan은 AE101 또는 다른 sheet일 수 있습니다.
+- Partition plan/details는 AE102, AE103, AE405, AE406, AE407 등일 수 있습니다.
 
-## Sheet role classification
+## Sheet role 분류
 
-Suggested role detection by title keywords:
+Title keyword 기반 role detection 제안:
 
 ```text
 FINISH_SCHEDULE:
-  contains FINISH SCHEDULE, INTR / EXT FINISH SCHEDULE, INTERIOR FINISH SCHEDULE, EXTERIOR & INTERIOR FINISH SCHEDULE
+  FINISH SCHEDULE, INTR / EXT FINISH SCHEDULE, INTERIOR FINISH SCHEDULE, EXTERIOR & INTERIOR FINISH SCHEDULE 포함
 
 FLOOR_PLAN:
-  contains FLOOR PLAN and not REMOVAL, not DEMOLITION, not ENLARGED, not PARTITION
+  FLOOR PLAN 포함, REMOVAL/DEMOLITION/ENLARGED/PARTITION 미포함
 
 ENLARGED_FLOOR_PLAN:
-  contains ENLARGED FLOOR PLAN
+  ENLARGED FLOOR PLAN 포함
 
 CEILING_PLAN:
-  contains REFLECTED CEILING PLAN or CEILING PLAN
+  REFLECTED CEILING PLAN 또는 CEILING PLAN 포함
 
 PARTITION_PLAN:
-  contains PARTITION and PLAN
+  PARTITION과 PLAN 포함
 
 PARTITION_DETAIL:
-  contains PARTITION and DETAIL
+  PARTITION과 DETAIL 포함
 
 DOOR_SCHEDULE:
-  contains DOOR SCHEDULE
+  DOOR SCHEDULE 포함
 
 WINDOW_SCHEDULE:
-  contains WINDOW SCHEDULE or LOUVER SCHEDULE
+  WINDOW SCHEDULE 또는 LOUVER SCHEDULE 포함
 
 DOOR_WINDOW_NUMBERING_PLAN:
-  contains DOOR/WINDOW and NUMBERING PLAN
+  DOOR/WINDOW와 NUMBERING PLAN 포함
 ```
 
-## Measurement categories
+## Measurement category
 
 ```text
 FLOOR_AREA
@@ -68,14 +68,14 @@ PARTITION_AREA
 COUNT
 ```
 
-## Calculation formulas
+## Calculation formula
 
 ### FLOOR_AREA
 
-Inputs:
+입력:
 
-- width and depth, or polygon area
-- deductions optional
+- width와 depth 또는 polygon area
+- deduction은 선택
 
 Formula:
 
@@ -86,10 +86,10 @@ unit = m2
 
 ### CEILING_AREA
 
-Inputs:
+입력:
 
-- width and depth, or polygon area
-- deductions optional
+- width와 depth 또는 polygon area
+- deduction은 선택
 
 Formula:
 
@@ -100,10 +100,10 @@ unit = m2
 
 ### PERIMETER_LENGTH
 
-Inputs:
+입력:
 
-- width and depth, or selected polyline length
-- deductions optional
+- width와 depth 또는 선택한 polyline length
+- deduction은 선택
 
 Formula:
 
@@ -114,11 +114,11 @@ unit = m
 
 ### WALL_AREA
 
-Inputs:
+입력:
 
 - wall_length
 - wall_height
-- deductions optional
+- deduction은 선택
 
 Formula:
 
@@ -129,12 +129,12 @@ unit = m2
 
 ### PARTITION_AREA
 
-Inputs:
+입력:
 
 - wall_length
 - wall_height
 - side_multiplier
-- deductions optional
+- deduction은 선택
 
 Formula:
 
@@ -143,15 +143,15 @@ quantity = wall_length * wall_height * side_multiplier - sum(deductions)
 unit = m2
 ```
 
-Known convention:
+알려진 관례:
 
-- GWB often uses both sides: side_multiplier = 2.
-- Other items often use one side: side_multiplier = 1.
-- This must be editable.
+- GWB는 양면을 사용하는 경우가 많습니다: `side_multiplier = 2`
+- 다른 항목은 보통 한쪽 면을 사용합니다: `side_multiplier = 1`
+- 이 값은 수정 가능해야 합니다.
 
 ### COUNT
 
-Inputs:
+입력:
 
 - count
 
@@ -162,13 +162,13 @@ quantity = count
 unit = EA
 ```
 
-## Rounding
+## 반올림
 
-Round quantities to two decimal places.
+수량은 소수점 둘째 자리로 반올림합니다.
 
 ## Review status
 
-Use these statuses:
+다음 status를 사용합니다.
 
 ```text
 DRAFT
@@ -177,11 +177,11 @@ CONFIRMED
 REJECTED
 ```
 
-Default extraction results should be DRAFT or NEEDS_REVIEW, not CONFIRMED.
+기본 extraction result는 `CONFIRMED`가 아니라 `DRAFT` 또는 `NEEDS_REVIEW`여야 합니다.
 
 ## Source traceability
 
-Every measurement must store source sheets, for example:
+모든 measurement는 source sheet를 저장해야 합니다. 예:
 
 ```text
 AE401, AE101
@@ -191,21 +191,20 @@ AE405, AE406
 
 ## Data extraction confidence
 
-Any extracted field should be editable and may include confidence metadata.
+추출된 모든 field는 수정 가능해야 하며 confidence metadata를 포함할 수 있습니다.
 
-Suggested confidence fields:
+권장 confidence field:
 
 - sheet_detection_confidence
 - room_finish_confidence
 - measurement_confidence
 
-## Units
+## 단위
 
-Use metric output:
+Metric output을 사용합니다.
 
-- m2 for area
-- m for length
-- EA for count
+- 면적: m2
+- 길이: m
+- 개수: EA
 
-Display square meters as `m²` in UI and Excel if possible, but store normalized unit as `m2`.
-
+가능하면 UI와 Excel에서는 square meter를 `m²`로 표시하되, 저장 값은 normalized unit인 `m2`로 유지합니다.

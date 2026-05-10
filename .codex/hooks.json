@@ -1,0 +1,53 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^(Write|Edit|MultiEdit|TodoWrite|apply_patch)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .codex/hooks/tdd-guard.ps1 tdd-pre-tool-use",
+            "timeout": 10,
+            "statusMessage": "Checking TDD guard"
+          }
+        ]
+      },
+      {
+        "matcher": "^Bash$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .codex/hooks/tdd-guard.ps1 pre-tool-use",
+            "timeout": 10,
+            "statusMessage": "Checking command policy"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "^Bash$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .codex/hooks/tdd-guard.ps1 permission-request",
+            "timeout": 10,
+            "statusMessage": "Checking approval policy"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .codex/hooks/tdd-guard.ps1 stop",
+            "timeout": 120,
+            "statusMessage": "Running project checks"
+          }
+        ]
+      }
+    ]
+  }
+}
