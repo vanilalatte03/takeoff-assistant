@@ -78,7 +78,7 @@ def build_measurements_workbook(measurements: list[Measurement]) -> BytesIO:
 def _build_summary_rows(measurements: list[Measurement]) -> list[SummaryRow]:
     grouped: OrderedDict[tuple[str, str, str], SummaryRow] = OrderedDict()
     for measurement in measurements:
-        if measurement.quantity is None:
+        if measurement.status == ReviewStatus.REJECTED or measurement.quantity is None:
             continue
         key = (
             measurement.category,

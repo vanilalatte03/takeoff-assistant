@@ -5,6 +5,7 @@ from app.models.enums import ReviewStatus
 
 class RoomFinishBase(BaseModel):
     project_id: int
+    drawing_file_id: int | None = None
     drawing_sheet_id: int | None = None
     room_no: str | None = None
     room_name: str | None = None

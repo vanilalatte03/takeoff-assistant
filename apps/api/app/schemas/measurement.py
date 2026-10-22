@@ -41,6 +41,7 @@ class MeasurementUpdate(BaseModel):
     status: ReviewStatus | None = None
     memo: str | None = None
     coordinates_json: dict[str, Any] | None = None
+    deductions_json: dict[str, Any] | None = None
     measurement_confidence: float | None = None
 
 

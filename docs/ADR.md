@@ -7,6 +7,8 @@
 
 ## ADR 목록
 
+- [ADR-004: 산출 소속과 계산 근거의 일관성](adr/0004-measurement-integrity.md)
+
 ### ADR-001: Local-first MVP 저장 방식
 **상태**: accepted
 

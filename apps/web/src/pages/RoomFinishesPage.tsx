@@ -50,6 +50,7 @@ function normalizeDraft(draft: RoomFinishCreate): RoomFinishCreate {
 export function RoomFinishesPage() {
   const [drawingFileId, setDrawingFileId] = useState("");
   const [rows, setRows] = useState<RoomFinish[]>([]);
+  const [persistedStatuses, setPersistedStatuses] = useState<Record<number, ReviewStatus>>({});
   const [warnings, setWarnings] = useState<string[]>([]);
   const [draft, setDraft] = useState<RoomFinishCreate>(emptyDraft);
   const [pendingRowId, setPendingRowId] = useState<number | null>(null);
@@ -88,6 +89,7 @@ export function RoomFinishesPage() {
   async function loadRows(id: number) {
     const loaded = await listRoomFinishes(id);
     setRows(loaded);
+    setPersistedStatuses(Object.fromEntries(loaded.map((row) => [row.id, row.status])));
     return loaded;
   }
 
@@ -128,6 +130,29 @@ export function RoomFinishesPage() {
     setRows((current) => current.map((row) => (row.id === rowId ? { ...row, ...patch } : row)));
   }
 
+  function isReadOnly(row: RoomFinish) {
+    return persistedStatuses[row.id] === "CONFIRMED" || persistedStatuses[row.id] === "REJECTED";
+  }
+
+  function applySavedRow(saved: RoomFinish) {
+    updateLocalRow(saved.id, saved);
+    setPersistedStatuses((current) => ({ ...current, [saved.id]: saved.status }));
+  }
+
+  async function startReview(row: RoomFinish) {
+    setPendingRowId(row.id);
+    setError(null);
+    setMessage(null);
+    try {
+      applySavedRow(await updateRoomFinish(row.id, { status: "DRAFT" }));
+      setMessage(`Room ${row.room_no ?? row.id} 재검토 시작`);
+    } catch (caught) {
+      setError(caught);
+    } finally {
+      setPendingRowId(null);
+    }
+  }
+
   function updateDraft(patch: Partial<RoomFinishCreate>) {
     setDraft((current) => ({ ...current, ...patch }));
     setMessage(null);
@@ -143,6 +168,7 @@ export function RoomFinishesPage() {
       const id = parseDrawingFileId(drawingFileId);
       const saved = await createRoomFinishForDrawingFile(id, normalizeDraft(draft));
       setRows((current) => [...current, saved]);
+      setPersistedStatuses((current) => ({ ...current, [saved.id]: saved.status }));
       setDraft(emptyDraft());
       setMessage(`Room ${saved.room_no ?? saved.id} created.`);
     } catch (caught) {
@@ -153,6 +179,7 @@ export function RoomFinishesPage() {
   }
 
   async function handleSave(row: RoomFinish) {
+    if (isReadOnly(row)) return;
     setPendingRowId(row.id);
     setError(null);
     setMessage(null);
@@ -168,7 +195,7 @@ export function RoomFinishesPage() {
         remarks: row.remarks,
         status: row.status,
       });
-      updateLocalRow(row.id, saved);
+      applySavedRow(saved);
       setMessage(`Room ${saved.room_no ?? saved.id} saved.`);
     } catch (caught) {
       setError(caught);
@@ -183,7 +210,7 @@ export function RoomFinishesPage() {
     setMessage(null);
     try {
       const rejected = await rejectRoomFinish(row.id);
-      updateLocalRow(row.id, rejected);
+      applySavedRow(rejected);
       setMessage(`Room ${rejected.room_no ?? rejected.id} rejected.`);
     } catch (caught) {
       setError(caught);
@@ -319,31 +346,32 @@ export function RoomFinishesPage() {
                 {filteredRows.map((row) => (
                   <tr key={row.id}>
                     <td>
-                      <input value={textValue(row.room_no)} onChange={(event) => updateLocalRow(row.id, { room_no: event.target.value })} />
+                      <input disabled={isReadOnly(row)} value={textValue(row.room_no)} onChange={(event) => updateLocalRow(row.id, { room_no: event.target.value })} />
                     </td>
                     <td>
-                      <input value={textValue(row.room_name)} onChange={(event) => updateLocalRow(row.id, { room_name: event.target.value })} />
+                      <input disabled={isReadOnly(row)} value={textValue(row.room_name)} onChange={(event) => updateLocalRow(row.id, { room_name: event.target.value })} />
                     </td>
                     <td>
-                      <input value={textValue(row.floor_finish)} onChange={(event) => updateLocalRow(row.id, { floor_finish: event.target.value })} />
+                      <input disabled={isReadOnly(row)} value={textValue(row.floor_finish)} onChange={(event) => updateLocalRow(row.id, { floor_finish: event.target.value })} />
                     </td>
                     <td>
-                      <input value={textValue(row.base_finish)} onChange={(event) => updateLocalRow(row.id, { base_finish: event.target.value })} />
+                      <input disabled={isReadOnly(row)} value={textValue(row.base_finish)} onChange={(event) => updateLocalRow(row.id, { base_finish: event.target.value })} />
                     </td>
                     <td>
-                      <input value={textValue(row.wall_finish)} onChange={(event) => updateLocalRow(row.id, { wall_finish: event.target.value })} />
+                      <input disabled={isReadOnly(row)} value={textValue(row.wall_finish)} onChange={(event) => updateLocalRow(row.id, { wall_finish: event.target.value })} />
                     </td>
                     <td>
                       <input
+                        disabled={isReadOnly(row)}
                         value={textValue(row.ceiling_finish)}
                         onChange={(event) => updateLocalRow(row.id, { ceiling_finish: event.target.value })}
                       />
                     </td>
                     <td>
-                      <input value={textValue(row.height)} onChange={(event) => updateLocalRow(row.id, { height: event.target.value })} />
+                      <input disabled={isReadOnly(row)} value={textValue(row.height)} onChange={(event) => updateLocalRow(row.id, { height: event.target.value })} />
                     </td>
                     <td>
-                      <select value={row.status} onChange={(event) => updateLocalRow(row.id, { status: event.target.value as ReviewStatus })}>
+                      <select disabled={isReadOnly(row)} value={row.status} onChange={(event) => updateLocalRow(row.id, { status: event.target.value as ReviewStatus })}>
                         {statuses.map((status) => (
                           <option key={status} value={status}>
                             {status}
@@ -355,13 +383,14 @@ export function RoomFinishesPage() {
                     <td>{row.source_sheet_no ?? "-"}</td>
                     <td>
                       <div className="table-actions">
-                        <button type="button" className="button-secondary compact-button" disabled={pendingRowId === row.id} onClick={() => handleSave(row)}>
+                        {persistedStatuses[row.id] === "CONFIRMED" ? <button type="button" disabled={pendingRowId === row.id} onClick={() => startReview(row)}>재검토 시작</button> : null}
+                        <button type="button" className="button-secondary compact-button" disabled={pendingRowId === row.id || isReadOnly(row)} onClick={() => handleSave(row)}>
                           Save
                         </button>
                         <button
                           type="button"
                           className="button-secondary compact-button danger-button"
-                          disabled={pendingRowId === row.id || row.status === "REJECTED"}
+                          disabled={pendingRowId === row.id || isReadOnly(row)}
                           onClick={() => handleReject(row)}
                         >
                           Reject

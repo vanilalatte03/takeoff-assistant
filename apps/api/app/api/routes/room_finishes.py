@@ -63,6 +63,7 @@ def extract_room_finishes(
                     continue
                 room_finish = RoomFinish(
                     project_id=drawing_file.project_id,
+                    drawing_file_id=drawing_file.id,
                     drawing_sheet_id=sheet.id,
                     room_no=candidate.room_no,
                     room_name=candidate.room_name,
@@ -124,7 +125,9 @@ def list_room_finishes(
         .join(DrawingSheet, RoomFinish.drawing_sheet_id == DrawingSheet.id, isouter=True)
         .filter(
             RoomFinish.project_id == drawing_file.project_id,
-            (RoomFinish.drawing_sheet_id.is_(None)) | (DrawingSheet.drawing_file_id == drawing_file_id),
+            ((RoomFinish.drawing_file_id == drawing_file_id)
+             & ((RoomFinish.drawing_sheet_id.is_(None)) | (DrawingSheet.drawing_file_id == drawing_file_id)))
+            | ((RoomFinish.drawing_file_id.is_(None)) & (DrawingSheet.drawing_file_id == drawing_file_id)),
         )
     )
     if room_no:
@@ -152,8 +155,8 @@ def create_room_finish(
     payload: RoomFinishCreate,
     db: Session = Depends(get_db),
 ) -> RoomFinish:
-    _validate_room_finish_references(db, payload.project_id, payload.drawing_sheet_id)
-    room_finish = RoomFinish(**payload.model_dump(exclude={"status"}), status=ReviewStatus.NEEDS_REVIEW)
+    file_id = _validate_room_finish_references(db, payload.project_id, payload.drawing_sheet_id, payload.drawing_file_id)
+    room_finish = RoomFinish(**payload.model_dump(exclude={"status", "drawing_file_id"}), drawing_file_id=file_id, status=ReviewStatus.NEEDS_REVIEW)
     db.add(room_finish)
     db.commit()
     db.refresh(room_finish)
@@ -183,6 +186,7 @@ def create_room_finish_for_drawing_file(
     room_finish = RoomFinish(
         **payload.model_dump(exclude={"status"}),
         project_id=drawing_file.project_id,
+        drawing_file_id=drawing_file.id,
         status=ReviewStatus.NEEDS_REVIEW,
     )
     db.add(room_finish)
@@ -205,12 +209,22 @@ def update_room_finish(
         )
 
     update_data = payload.model_dump(exclude_unset=True)
+    if room_finish.status == ReviewStatus.REJECTED:
+        raise HTTPException(status_code=409, detail="Rejected room finishes are read-only.")
+    if room_finish.status == ReviewStatus.CONFIRMED and update_data != {"status": ReviewStatus.DRAFT}:
+        raise HTTPException(status_code=409, detail="Confirmed room finishes are read-only. Reopen with status DRAFT only.")
+    if any(row.status == ReviewStatus.CONFIRMED for row in room_finish.measurements):
+        raise HTTPException(status_code=409, detail="Reopen confirmed measurements before editing their room finish.")
     if "drawing_sheet_id" in update_data:
-        _validate_room_finish_references(db, room_finish.project_id, update_data["drawing_sheet_id"])
+        file_id = _validate_room_finish_references(db, room_finish.project_id, update_data["drawing_sheet_id"], room_finish.drawing_file_id)
+        if room_finish.drawing_file_id is None:
+            room_finish.drawing_file_id = file_id
     if update_data.get("status") == ReviewStatus.REJECTED:
         return _reject_room_finish(db, room_finish)
 
     for field, value in update_data.items():
+        if field == "status" and value is None:
+            continue
         setattr(room_finish, field, value)
 
     db.commit()
@@ -245,17 +259,25 @@ def _room_finish_exists(db: Session, drawing_sheet_id: int, room_no: str) -> boo
     )
 
 
-def _validate_room_finish_references(db: Session, project_id: int, drawing_sheet_id: int | None) -> None:
+def _validate_room_finish_references(db: Session, project_id: int, drawing_sheet_id: int | None,
+                                    drawing_file_id: int | None = None) -> int | None:
     if db.get(Project, project_id) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Project not found.",
         )
-    if drawing_sheet_id is not None and db.get(DrawingSheet, drawing_sheet_id) is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Drawing sheet not found.",
-        )
+    if drawing_sheet_id is not None:
+        sheet = db.get(DrawingSheet, drawing_sheet_id)
+        if sheet is None:
+            raise HTTPException(status_code=404, detail="Drawing sheet not found.")
+        if drawing_file_id is not None and sheet.drawing_file_id != drawing_file_id:
+            raise HTTPException(status_code=400, detail="Drawing sheet belongs to a different drawing file.")
+        drawing_file_id = sheet.drawing_file_id
+    if drawing_file_id is not None:
+        drawing_file = db.get(DrawingFile, drawing_file_id)
+        if drawing_file is None or drawing_file.project_id != project_id:
+            raise HTTPException(status_code=400, detail="Drawing file belongs to a different project or does not exist.")
+    return drawing_file_id
 
 
 def _validate_drawing_sheet_for_file(db: Session, drawing_file_id: int, drawing_sheet_id: int) -> None:
@@ -268,6 +290,8 @@ def _validate_drawing_sheet_for_file(db: Session, drawing_file_id: int, drawing_
 
 
 def _reject_room_finish(db: Session, room_finish: RoomFinish) -> RoomFinish:
+    if room_finish.status in {ReviewStatus.CONFIRMED, ReviewStatus.REJECTED}:
+        raise HTTPException(status_code=409, detail="Confirmed or rejected room finishes cannot be rejected.")
     linked_measurements = (
         db.query(Measurement)
         .filter(Measurement.room_finish_id == room_finish.id)

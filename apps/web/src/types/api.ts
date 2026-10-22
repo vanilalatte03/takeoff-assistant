@@ -155,6 +155,7 @@ export interface RoomFinish {
   id: number;
   project_id: number;
   drawing_sheet_id: number | null;
+  drawing_file_id?: number | null;
   room_no: string | null;
   room_name: string | null;
   floor_material: string | null;
@@ -279,6 +280,7 @@ export interface MeasurementUpdate {
   status?: ReviewStatus | null;
   memo?: string | null;
   coordinates_json?: Record<string, unknown> | null;
+  deductions_json?: Record<string, unknown> | null;
   measurement_confidence?: number | null;
 }
 
