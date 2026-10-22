@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { calculateMeasurement, updateMeasurement } from "../api/client";
+import { hasInvalidStoredQuantity, measurementUnits, mergeSourceSheets } from "../measurementIntegrity";
 import type {
   CalculationType,
   DimensionAssistSelectedCandidate,
@@ -91,18 +92,36 @@ function defaultCalculationType(measurement: Measurement): CalculationType {
 
 function createDraft(measurement: Measurement): CalculationDraft {
   const prefill = dimensionAssistPrefill(measurement);
+  const stored = measurement.coordinates_json?.calculation_inputs;
+  const inputs = stored && typeof stored === "object" ? stored as Record<string, unknown> : {};
+  const inputString = (field: string, fallback = "") => {
+    const value = inputs[field];
+    return typeof value === "string" || typeof value === "number" ? String(value) : fallback;
+  };
+  const allowedTypes = allowedCalculationTypesByMeasurementType[measurement.measurement_type];
+  const manualResultIsCurrent = !stored && measurement.coordinates_json?.active_input_source !== "dimension_assist"
+    && measurement.coordinates_json?.measurement_mode && measurement.coordinates_json?.result;
+  const calculationType = allowedTypes.includes(inputs.calculation_type as CalculationType)
+    ? inputs.calculation_type as CalculationType : manualResultIsCurrent ? "CUSTOM" : defaultCalculationType(measurement);
+  const storedDeductions = inputs.deductions ?? measurement.deductions_json?.items;
+  const deductions: DeductionDraft[] = Array.isArray(storedDeductions)
+    ? storedDeductions.flatMap((item, index) => {
+      if (!item || typeof item !== "object" || item.amount === null || item.amount === undefined) return [];
+      return [{ id: `stored-${index}`, amount: String(item.amount), label: String(item.label ?? ""), formula: String(item.formula ?? "") }];
+    }) : [];
+  const isWall = measurement.measurement_type === "WALL_AREA" || measurement.measurement_type === "PARTITION_AREA";
   return {
-    calculationType: defaultCalculationType(measurement),
-    width: prefill.width ?? "",
-    height: prefill.height ?? prefill.wall_height ?? "",
-    length: prefill.wall_length ?? "",
-    sideCount: prefill.side_multiplier ?? "1",
-    count: "",
-    customFormula: measurement.formula ?? "",
-    customQuantity: measurement.quantity === null ? "" : String(measurement.quantity),
-    customUnit: measurement.unit ?? "",
-    sourceSheets: prefill.sourceSheets ?? measurement.source_sheets,
-    deductions: [],
+    calculationType,
+    width: inputString("width", prefill.width),
+    height: isWall ? inputString("wall_height", prefill.wall_height) : inputString("height", prefill.height),
+    length: inputString("wall_length", prefill.wall_length),
+    sideCount: inputString("side_multiplier", prefill.side_multiplier ?? "1"),
+    count: inputString("count"),
+    customFormula: inputString("custom_formula", measurement.formula ?? ""),
+    customQuantity: inputString("custom_quantity", measurement.quantity === null ? "" : String(measurement.quantity)),
+    customUnit: measurementUnits[measurement.measurement_type],
+    sourceSheets: mergeSourceSheets(measurement.source_sheets, prefill.sourceSheets, inputString("source_sheets")),
+    deductions,
   };
 }
 
@@ -111,7 +130,7 @@ function createMetadataDraft(measurement: Measurement): MetadataDraft {
     category: measurement.category,
     finishCode: measurement.finish_code,
     measurementType: measurement.measurement_type,
-    unit: measurement.unit ?? "",
+    unit: measurementUnits[measurement.measurement_type],
     memo: measurement.memo ?? "",
   };
 }
@@ -233,8 +252,8 @@ function computePreview(draft: CalculationDraft): PreviewResult {
       const height = parseRequiredPositive(draft.height, "Height");
       return {
         ready: true,
-        formula: `${formulaNumber(draft.width)} * ${formulaNumber(draft.height)}`,
-        quantity: round2(width * height),
+        formula: `${formulaNumber(draft.width)} * ${formulaNumber(draft.height)}${deductions ? ` - ${deductionFormula(draft.deductions)}` : ""}`,
+        quantity: round2(width * height - deductions),
         unit: "m2",
       };
     }
@@ -278,6 +297,9 @@ function computePreview(draft: CalculationDraft): PreviewResult {
 
     if (draft.calculationType === "COUNT") {
       const count = parseRequiredNonNegative(draft.count, "Count");
+      if (!Number.isInteger(count)) {
+        return { ready: false, message: "Count는 정수여야 합니다." };
+      }
       return {
         ready: true,
         formula: formulaNumber(draft.count),
@@ -293,6 +315,9 @@ function computePreview(draft: CalculationDraft): PreviewResult {
       return { ready: false, message: "Custom unit을 입력해 주세요." };
     }
     const customQuantity = parseRequiredNonNegative(draft.customQuantity, "Custom quantity");
+    if (draft.customUnit === "EA" && !Number.isInteger(customQuantity)) {
+      return { ready: false, message: "EA 수량은 정수여야 합니다." };
+    }
     return {
       ready: true,
       formula: draft.customFormula.trim(),
@@ -325,6 +350,7 @@ function buildCalculationPayload(draft: CalculationDraft): MeasurementCalculatio
       ...common,
       width: draft.width,
       height: draft.height,
+      deductions,
     };
   }
   if (draft.calculationType === "PERIMETER_RECTANGLE") {
@@ -381,7 +407,7 @@ export function MeasurementCalculationForm({ measurement, onSaved }: Measurement
     setConfirmAfterSave(false);
     setMessage(null);
     setError(null);
-  }, [measurement?.id, measurement?.coordinates_json]);
+  }, [measurement?.id, measurement?.coordinates_json, measurement?.deductions_json, measurement?.status]);
 
   const preview = useMemo(() => (draft ? computePreview(draft) : null), [draft]);
 
@@ -396,6 +422,7 @@ export function MeasurementCalculationForm({ measurement, onSaved }: Measurement
   const currentMeasurement = measurement;
   const currentDraft = draft;
   const currentMetadataDraft = metadataDraft;
+  const isReadOnly = currentMeasurement.status === "CONFIRMED" || currentMeasurement.status === "REJECTED";
   const allowedCalculationTypes = allowedCalculationTypesByMeasurementType[currentMetadataDraft.measurementType];
 
   function updateDraft(patch: Partial<CalculationDraft>) {
@@ -412,7 +439,8 @@ export function MeasurementCalculationForm({ measurement, onSaved }: Measurement
 
   function handleMeasurementTypeChange(nextType: MeasurementType) {
     const nextAllowedTypes = allowedCalculationTypesByMeasurementType[nextType];
-    updateMetadataDraft({ measurementType: nextType });
+    updateMetadataDraft({ measurementType: nextType, unit: measurementUnits[nextType] });
+    updateDraft({ customUnit: measurementUnits[nextType] });
     if (!nextAllowedTypes.includes(currentDraft.calculationType)) {
       updateDraft({
         calculationType: nextAllowedTypes[0],
@@ -423,18 +451,23 @@ export function MeasurementCalculationForm({ measurement, onSaved }: Measurement
   }
 
   async function saveMetadataDraft() {
+    if (isReadOnly) throw new Error("확정된 행은 재검토 시작 후 수정할 수 있습니다.");
     if (!currentMetadataDraft.category.trim()) {
       throw new Error("Category를 입력해 주세요.");
     }
     if (!currentMetadataDraft.finishCode.trim()) {
       throw new Error("Code를 입력해 주세요.");
     }
+    const invalidatesCalculation = hasInvalidStoredQuantity(currentMeasurement)
+      || currentMetadataDraft.measurementType !== currentMeasurement.measurement_type
+      || currentMetadataDraft.unit.trim() !== currentMeasurement.unit;
     const saved = await updateMeasurement(currentMeasurement.id, {
       category: currentMetadataDraft.category.trim(),
       finish_code: currentMetadataDraft.finishCode.trim(),
       measurement_type: currentMetadataDraft.measurementType,
       unit: currentMetadataDraft.unit.trim() || null,
       memo: currentMetadataDraft.memo.trim() || null,
+      ...(invalidatesCalculation ? { quantity: null, formula: null } : {}),
     });
     onSaved(saved);
     return saved;
@@ -458,6 +491,18 @@ export function MeasurementCalculationForm({ measurement, onSaved }: Measurement
     updateDraft({
       deductions: currentDraft.deductions.map((deduction) => (deduction.id === id ? { ...deduction, ...patch } : deduction)),
     });
+  }
+
+  async function startReview() {
+    setIsSaving(true);
+    setError(null);
+    try {
+      onSaved(await updateMeasurement(currentMeasurement.id, { status: "DRAFT" }));
+    } catch (caught) {
+      setError(caught);
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function addDeduction() {
@@ -509,7 +554,7 @@ export function MeasurementCalculationForm({ measurement, onSaved }: Measurement
 
   const showWidthHeight = currentDraft.calculationType === "AREA_RECTANGLE" || currentDraft.calculationType === "PERIMETER_RECTANGLE";
   const showLengthHeight = currentDraft.calculationType === "WALL_AREA" || currentDraft.calculationType === "PARTITION_AREA";
-  const showDeductions =
+  const showDeductions = currentDraft.calculationType === "AREA_RECTANGLE" ||
     currentDraft.calculationType === "PERIMETER_RECTANGLE" ||
     currentDraft.calculationType === "WALL_AREA" ||
     currentDraft.calculationType === "PARTITION_AREA";
@@ -526,6 +571,14 @@ export function MeasurementCalculationForm({ measurement, onSaved }: Measurement
         <StatusBadge status={currentMeasurement.status} />
       </div>
 
+      {currentMeasurement.status === "CONFIRMED" ? (
+        <div className="message message-warning">
+          확정된 행은 읽기 전용입니다. 수정하려면 재검토를 시작하세요.
+          <button type="button" onClick={startReview} disabled={isSaving}>재검토 시작</button>
+        </div>
+      ) : currentMeasurement.status === "REJECTED" ? <p>거절된 행은 읽기 전용입니다.</p> : null}
+
+      <fieldset disabled={isReadOnly || isSaving || isSavingMetadata} className="integrity-fieldset">
       <div className="metadata-editor">
         <div className="section-heading compact-heading">
           <h3>후보 정보</h3>
@@ -556,7 +609,7 @@ export function MeasurementCalculationForm({ measurement, onSaved }: Measurement
           </label>
           <label>
             <span>Unit</span>
-            <input value={currentMetadataDraft.unit} onChange={(event) => updateMetadataDraft({ unit: event.target.value })} />
+            <input value={currentMetadataDraft.unit} readOnly />
           </label>
         </div>
         <label>
@@ -647,7 +700,7 @@ export function MeasurementCalculationForm({ measurement, onSaved }: Measurement
               </label>
               <label>
                 <span>Unit</span>
-                <input value={currentDraft.customUnit} onChange={(event) => updateDraft({ customUnit: event.target.value })} />
+                  <input value={currentDraft.customUnit} readOnly />
               </label>
             </div>
           </>
@@ -721,6 +774,7 @@ export function MeasurementCalculationForm({ measurement, onSaved }: Measurement
           </button>
         </div>
       </form>
+      </fieldset>
 
       <ErrorMessage error={error} />
       {message ? <div className="message message-success">{message}</div> : null}

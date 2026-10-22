@@ -1,6 +1,7 @@
 import { MouseEvent, PointerEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { getDimensionCandidates, listMeasurements, updateMeasurement } from "../api/client";
+import { measurementUnits, mergeSourceSheets } from "../measurementIntegrity";
 import type { DimensionCandidate, DimensionCandidateSlot, DimensionRegion, Measurement } from "../types/api";
 import { ErrorMessage } from "./ApiState";
 
@@ -158,6 +159,15 @@ function clampZoom(value: number) {
   return Math.min(Math.max(value, 0.1), 6);
 }
 
+function compatibleMeasurement(mode: MeasurementMode, measurement: Measurement) {
+  if (measurement.status === "REJECTED") return false;
+  const unit = measurementUnits[measurement.measurement_type];
+  if (mode === "LINE_LENGTH") return unit === "m";
+  if (mode === "RECTANGLE_AREA" || mode === "POLYGON_AREA") return unit === "m2";
+  if (mode === "COUNT_CLICK") return unit === "EA";
+  return true;
+}
+
 export function ManualMeasurementViewer({
   drawingFileId,
   pageIndex,
@@ -190,17 +200,50 @@ export function ManualMeasurementViewer({
   const [dimensionSelections, setDimensionSelections] = useState<Record<DimensionCandidateSlot, DimensionCandidate | null>>(emptyDimensionSelections);
   const [dimensionWarnings, setDimensionWarnings] = useState<string[]>([]);
   const [isLoadingDimensions, setIsLoadingDimensions] = useState(false);
+  const dimensionRequestRef = useRef(0);
+  const saveRequestRef = useRef(0);
+  const pageKey = `${drawingFileId}:${pageIndex}:${imageUrl}`;
+  const pageKeyRef = useRef(pageKey);
+  pageKeyRef.current = pageKey;
 
   const selectedMeasurement = useMemo(
-    () => measurements.find((measurement) => String(measurement.id) === selectedMeasurementId) ?? null,
-    [measurements, selectedMeasurementId],
+    () => measurements.find((measurement) => String(measurement.id) === selectedMeasurementId && compatibleMeasurement(mode, measurement)) ?? null,
+    [measurements, selectedMeasurementId, mode],
   );
   const selectableMeasurements = useMemo(
-    () => (mode === "COUNT_CLICK" ? measurements.filter((measurement) => measurement.measurement_type === "COUNT") : measurements),
+    () => measurements.filter((measurement) => compatibleMeasurement(mode, measurement)),
     [measurements, mode],
   );
   const canMeasure = scale !== null || mode === "SCALE" || mode === "COUNT_CLICK" || mode === "DIMENSION_REGION";
   const hasMeasurementCandidates = selectableMeasurements.length > 0;
+  const isReadOnly = selectedMeasurement?.status === "CONFIRMED";
+
+  useEffect(() => {
+    dimensionRequestRef.current += 1;
+    saveRequestRef.current += 1;
+    setIsSaving(false);
+    setMode("SCALE");
+    setScale(null);
+    setPoints([]);
+    setResult(null);
+    setNaturalSize({ width: 0, height: 0 });
+    setDimensionRegion(null);
+    setDimensionCandidates([]);
+    setDimensionSelections(emptyDimensionSelections());
+    setDimensionWarnings([]);
+    setIsLoadingDimensions(false);
+    setIsPanMode(false);
+    panDragRef.current = null;
+    setError(null);
+    setSaveMessage(null);
+    return () => { dimensionRequestRef.current += 1; saveRequestRef.current += 1; };
+  }, [pageKey]);
+
+  useEffect(() => {
+    if (!selectableMeasurements.some((measurement) => String(measurement.id) === selectedMeasurementId)) {
+      setSelectedMeasurementId(selectableMeasurements[0] ? String(selectableMeasurements[0].id) : "");
+    }
+  }, [selectableMeasurements, selectedMeasurementId]);
 
   useEffect(() => {
     const viewport = viewportRef.current;
@@ -220,14 +263,18 @@ export function ManualMeasurementViewer({
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
     setIsLoadingMeasurements(true);
+    setMeasurements([]);
+    setSelectedMeasurementId("");
     listMeasurements(drawingFileId)
       .then((loaded) => {
+        if (cancelled) return;
         setMeasurements(loaded);
-        setSelectedMeasurementId(loaded[0] ? String(loaded[0].id) : "");
       })
-      .catch(setError)
-      .finally(() => setIsLoadingMeasurements(false));
+      .catch((caught) => { if (!cancelled) setError(caught); })
+      .finally(() => { if (!cancelled) setIsLoadingMeasurements(false); });
+    return () => { cancelled = true; };
   }, [drawingFileId]);
 
   useEffect(() => {
@@ -524,17 +571,21 @@ export function ManualMeasurementViewer({
     setDimensionSelections(emptyDimensionSelections());
     setDimensionWarnings([]);
     setIsLoadingDimensions(true);
+    const requestId = ++dimensionRequestRef.current;
+    const requestedPage = pageKey;
+    const isCurrent = () => requestId === dimensionRequestRef.current && requestedPage === pageKeyRef.current;
     try {
       const response = await getDimensionCandidates(drawingFileId, pageIndex, { region });
+      if (!isCurrent()) return;
       setDimensionCandidates(response.candidates);
       setDimensionWarnings(response.warnings);
       if (!response.candidates.length) {
         setSaveMessage(null);
       }
     } catch (caught) {
-      setError(caught);
+      if (isCurrent()) setError(caught);
     } finally {
-      setIsLoadingDimensions(false);
+      if (isCurrent()) setIsLoadingDimensions(false);
     }
   }
 
@@ -549,6 +600,10 @@ export function ManualMeasurementViewer({
     setSaveMessage(null);
     if (!selectedMeasurement) {
       setError(new Error("Choose a Measurement candidate before saving dimension evidence."));
+      return;
+    }
+    if (isReadOnly) {
+      setError(new Error("확정된 행은 재검토 시작 후 수정할 수 있습니다."));
       return;
     }
     if (!dimensionRegion) {
@@ -572,9 +627,13 @@ export function ManualMeasurementViewer({
     }
 
     setIsSaving(true);
+    const requestId = ++saveRequestRef.current;
+    const requestedPage = pageKey;
+    const isCurrent = () => requestId === saveRequestRef.current && requestedPage === pageKeyRef.current;
     try {
       const nextCoordinates = {
         ...(selectedMeasurement.coordinates_json ?? {}),
+        active_input_source: "dimension_assist",
         dimension_assist: {
           region: {
             drawing_file_id: drawingFileId,
@@ -595,15 +654,16 @@ export function ManualMeasurementViewer({
       };
       const saved = await updateMeasurement(selectedMeasurement.id, {
         coordinates_json: nextCoordinates,
-        source_sheets: selectedMeasurement.source_sheets || sourceSheetNo || selectedCandidates[0]?.source_sheet || "",
+        source_sheets: mergeSourceSheets(selectedMeasurement.source_sheets, sourceSheetNo, ...selectedCandidates.map((candidate) => candidate.source_sheet)),
       });
+      if (!isCurrent()) return;
       setMeasurements((current) => current.map((measurement) => (measurement.id === saved.id ? saved : measurement)));
       setSelectedMeasurementId(String(saved.id));
       setSaveMessage(`Dimension evidence saved to Measurement ${saved.id}. Open Measurement Review to calculate with prefilled values.`);
     } catch (caught) {
-      setError(caught);
+      if (isCurrent()) setError(caught);
     } finally {
-      setIsSaving(false);
+      if (isCurrent()) setIsSaving(false);
     }
   }
 
@@ -676,6 +736,8 @@ export function ManualMeasurementViewer({
   }
 
   function handleModeChange(nextMode: MeasurementMode) {
+    dimensionRequestRef.current += 1;
+    setIsLoadingDimensions(false);
     setMode(nextMode);
     if (nextMode === "COUNT_CLICK") {
       const firstCountMeasurement = measurements.find((measurement) => measurement.measurement_type === "COUNT");
@@ -713,6 +775,8 @@ export function ManualMeasurementViewer({
   }
 
   function clearMeasurement() {
+    dimensionRequestRef.current += 1;
+    setIsLoadingDimensions(false);
     setPoints([]);
     setResult(null);
     if (mode === "DIMENSION_REGION") {
@@ -736,26 +800,28 @@ export function ManualMeasurementViewer({
       setError(new Error("저장할 Measurement 후보를 선택해 주세요."));
       return;
     }
-
-    if (result.mode === "COUNT_CLICK" && selectedMeasurement.measurement_type !== "COUNT") {
-      setError(new Error("개수 클릭 결과는 COUNT Measurement 후보에만 저장할 수 있습니다."));
-      return;
-    }
-    if (result.mode !== "COUNT_CLICK" && selectedMeasurement.measurement_type === "COUNT") {
-      setError(new Error("COUNT Measurement에는 개수 클릭 모드 결과를 저장해 주세요."));
+    if (isReadOnly || !compatibleMeasurement(result.mode, selectedMeasurement) || measurementUnits[selectedMeasurement.measurement_type] !== result.unit) {
+      setError(new Error("재검토 중이며 측정 모드와 단위가 일치하는 후보를 선택해 주세요."));
       return;
     }
 
     setIsSaving(true);
+    const requestId = ++saveRequestRef.current;
+    const requestedPage = pageKey;
+    const isCurrent = () => requestId === saveRequestRef.current && requestedPage === pageKeyRef.current;
     try {
+      const { calculation_inputs: _obsoleteInputs, ...preservedCoordinates } = selectedMeasurement.coordinates_json ?? {};
       const saved = await updateMeasurement(selectedMeasurement.id, {
         formula: result.formula,
         quantity: result.mode === "COUNT_CLICK" ? String(result.quantity) : result.quantity.toFixed(2),
         unit: result.unit,
-        source_sheets: selectedMeasurement.source_sheets || sourceSheetNo || "",
+        source_sheets: mergeSourceSheets(selectedMeasurement.source_sheets, sourceSheetNo),
         status: "DRAFT",
-        memo: `manual ${modeLabel(result.mode)} measurement`,
+        memo: selectedMeasurement.memo,
+        deductions_json: null,
         coordinates_json: {
+          ...preservedCoordinates,
+          active_input_source: "manual_geometry",
           measurement_mode: result.mode,
           drawing_file_id: drawingFileId,
           page_index: pageIndex,
@@ -783,13 +849,32 @@ export function ManualMeasurementViewer({
           },
         },
       });
+      if (!isCurrent()) return;
       setMeasurements((current) => current.map((measurement) => (measurement.id === saved.id ? saved : measurement)));
       setSelectedMeasurementId(String(saved.id));
       setSaveMessage(`Measurement ${saved.id}에 ${saved.quantity ?? result.quantity.toFixed(2)} ${saved.unit ?? result.unit} 저장 완료`);
     } catch (caught) {
-      setError(caught);
+      if (isCurrent()) setError(caught);
     } finally {
-      setIsSaving(false);
+      if (isCurrent()) setIsSaving(false);
+    }
+  }
+
+  async function startReview() {
+    if (!selectedMeasurement || !isReadOnly) return;
+    setIsSaving(true);
+    const requestId = ++saveRequestRef.current;
+    const requestedPage = pageKey;
+    const isCurrent = () => requestId === saveRequestRef.current && requestedPage === pageKeyRef.current;
+    setError(null);
+    try {
+      const saved = await updateMeasurement(selectedMeasurement.id, { status: "DRAFT" });
+      if (!isCurrent()) return;
+      setMeasurements((current) => current.map((measurement) => measurement.id === saved.id ? saved : measurement));
+    } catch (caught) {
+      if (isCurrent()) setError(caught);
+    } finally {
+      if (isCurrent()) setIsSaving(false);
     }
   }
 
@@ -934,6 +1019,11 @@ export function ManualMeasurementViewer({
           </select>
         </label>
 
+        {isReadOnly ? <div className="message message-warning">
+          확정된 행은 읽기 전용입니다.
+          <button type="button" onClick={startReview} disabled={isSaving}>재검토 시작</button>
+        </div> : null}
+
         {mode === "DIMENSION_REGION" ? (
           <div className="dimension-assist-panel">
             <div className="section-heading compact-heading">
@@ -991,7 +1081,7 @@ export function ManualMeasurementViewer({
                 </span>
               ))}
             </div>
-            <button type="button" onClick={saveDimensionAssistEvidence} disabled={isSaving || !selectedMeasurement || !dimensionRegion}>
+            <button type="button" onClick={saveDimensionAssistEvidence} disabled={isSaving || isReadOnly || isLoadingDimensions || !selectedMeasurement || !dimensionRegion}>
               {isSaving ? "Saving..." : "Save evidence for calculation"}
             </button>
           </div>
@@ -1001,7 +1091,7 @@ export function ManualMeasurementViewer({
           <div className="empty-state compact">먼저 Room Finish 후보 추출과 Measurement 후보 생성을 실행하세요.</div>
         ) : null}
 
-        <button type="button" onClick={saveMeasurement} disabled={isSaving || !result || !selectedMeasurement}>
+        <button type="button" onClick={saveMeasurement} disabled={isSaving || isReadOnly || !result || !selectedMeasurement}>
           {isSaving ? "저장 중" : "Measurement에 저장"}
         </button>
 

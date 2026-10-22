@@ -1,8 +1,9 @@
-from decimal import Decimal
+from copy import deepcopy
+from decimal import Decimal, ROUND_HALF_UP
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, object_session
 
 from app.db.session import get_db
 from app.models import CalculationType, DrawingFile, DrawingSheet, Measurement, MeasurementType, ReviewStatus, RoomFinish
@@ -25,6 +26,7 @@ from app.services import (
     calculate,
     existing_measurement_keys,
 )
+from app.services.measurement_validation import validate_measurement_values
 
 
 router = APIRouter(tags=["measurements"])
@@ -57,6 +59,8 @@ def generate_measurement_candidates(
 
     created_measurements: list[Measurement] = []
     for room_finish in room_finishes:
+        if room_finish.status == ReviewStatus.REJECTED:
+            continue
         for spec in build_measurement_candidate_specs(room_finish):
             key = candidate_key(room_finish.id, spec)
             if key in existing_keys:
@@ -186,6 +190,8 @@ def calculate_measurement(
             detail="Measurement not found.",
         )
 
+    _require_editable(measurement)
+
     allowed_calculation_types = _allowed_calculation_types(measurement.measurement_type)
     if payload.calculation_type not in allowed_calculation_types:
         raise HTTPException(
@@ -209,9 +215,7 @@ def calculate_measurement(
                 custom_formula=payload.custom_formula,
                 custom_quantity=payload.custom_quantity,
                 unit=payload.unit,
-                source_sheets=payload.source_sheets
-                if payload.source_sheets is not None
-                else measurement.source_sheets,
+                source_sheets=_merge_csv_values((measurement.source_sheets, payload.source_sheets or "")),
                 deductions=tuple(
                     DeductionInput(
                         amount=deduction.amount,
@@ -221,6 +225,11 @@ def calculate_measurement(
                     for deduction in payload.deductions
                 ),
             )
+        )
+        validate_measurement_values(
+            measurement_type=measurement.measurement_type, quantity=result.quantity, unit=result.unit,
+            formula=result.formula, source_sheets=result.source_sheets, status=ReviewStatus.DRAFT,
+            category=measurement.category, finish_code=measurement.finish_code,
         )
     except ValueError as exc:
         raise HTTPException(
@@ -233,6 +242,10 @@ def calculate_measurement(
     measurement.unit = result.unit
     measurement.source_sheets = result.source_sheets
     measurement.deductions_json = result.deductions_json
+    evidence = _archive_merge_provenance(dict(measurement.coordinates_json or {}))
+    evidence["calculation_inputs"] = payload.model_dump(mode="json")
+    evidence["calculation_inputs"]["source_sheets"] = result.source_sheets
+    measurement.coordinates_json = evidence
     measurement.status = ReviewStatus.DRAFT
     db.commit()
     db.refresh(measurement)
@@ -253,6 +266,54 @@ def update_measurement(
         )
 
     update_data = payload.model_dump(exclude_unset=True)
+    if measurement.room_finish and measurement.room_finish.status == ReviewStatus.REJECTED:
+        raise HTTPException(status_code=409, detail="Measurements of rejected room finishes are read-only.")
+    if measurement.status == ReviewStatus.CONFIRMED:
+        if update_data != {"status": ReviewStatus.DRAFT}:
+            raise HTTPException(status_code=409, detail="Confirmed measurements are read-only. Reopen with status DRAFT only.")
+        # Older versions accepted invalid units/quantities. Reopening must remain
+        # possible so the user can correct those values on the following edit.
+        measurement.status = ReviewStatus.DRAFT
+        db.commit()
+        db.refresh(measurement)
+        return measurement
+    else:
+        _require_editable(measurement)
+    if update_data.get("deductions_json") is not None:
+        raise HTTPException(status_code=400, detail="Change deductions through the calculation API; PATCH only supports clearing them.")
+    candidate = {field: update_data.get(field, getattr(measurement, field))
+                 for field in ("measurement_type", "quantity", "unit", "formula", "source_sheets", "status", "category", "finish_code")}
+    if candidate["status"] is None:
+        candidate["status"] = measurement.status
+    try:
+        validate_measurement_values(**candidate)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if update_data.get("quantity") is not None:
+        update_data["quantity"] = update_data["quantity"].quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    value_changed = any(field in update_data and update_data[field] != getattr(measurement, field)
+                        for field in ("measurement_type", "formula", "quantity", "unit"))
+    supplied_coordinates = update_data.get("coordinates_json") or {}
+    geometry_changed = "coordinates_json" in update_data and any(
+        field in supplied_coordinates and supplied_coordinates[field] != (measurement.coordinates_json or {}).get(field)
+        for field in ("measurement_mode", "points", "scale", "result", "page_index", "drawing_file_id")
+    )
+    deductions_cleared = "deductions_json" in update_data and measurement.deductions_json is not None
+    manual_replacement = "coordinates_json" in update_data and "deductions_json" in update_data
+    dimension_changed = "dimension_assist" in supplied_coordinates and supplied_coordinates["dimension_assist"] != (measurement.coordinates_json or {}).get("dimension_assist")
+    invalidate_inputs = value_changed or geometry_changed or deductions_cleared or manual_replacement or dimension_changed
+    if "coordinates_json" in update_data or invalidate_inputs:
+        # Client-supplied coordinates are evidence, never authoritative server calculation inputs.
+        coordinates = deepcopy(measurement.coordinates_json or {})
+        coordinates.update(supplied_coordinates)
+        coordinates.pop("calculation_inputs", None)
+        if not invalidate_inputs and (measurement.coordinates_json or {}).get("calculation_inputs") is not None:
+            coordinates["calculation_inputs"] = measurement.coordinates_json["calculation_inputs"]
+        if invalidate_inputs:
+            coordinates = _archive_merge_provenance(coordinates)
+            if value_changed or geometry_changed or manual_replacement:
+                update_data.setdefault("deductions_json", None)
+        update_data["coordinates_json"] = coordinates or None
     for field, value in update_data.items():
         if field == "source_sheets" and value is None:
             value = ""
@@ -276,7 +337,7 @@ def reject_measurement(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Measurement not found.",
         )
-    if measurement.status == ReviewStatus.CONFIRMED:
+    if measurement.status in {ReviewStatus.CONFIRMED, ReviewStatus.REJECTED}:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Confirmed measurements cannot be rejected.",
@@ -325,6 +386,12 @@ def merge_measurements(
 
     source_measurements = [measurement for measurement in sources if measurement is not None]
     _validate_merge_rows(target, source_measurements)
+    for row in [target, *source_measurements]:
+        _require_editable(row)
+    file_id = _measurement_drawing_file_id(target)
+    if file_id is None or any(row.project_id != target.project_id or _measurement_drawing_file_id(row) != file_id
+                              for row in source_measurements):
+        raise HTTPException(status_code=400, detail="Measurements must belong to the same assigned drawing file and project.")
     _apply_measurement_merge(target, source_measurements)
 
     db.commit()
@@ -338,7 +405,9 @@ def _room_finishes_for_drawing_file(db: Session, drawing_file: DrawingFile) -> l
         .join(DrawingSheet, RoomFinish.drawing_sheet_id == DrawingSheet.id, isouter=True)
         .filter(
             RoomFinish.project_id == drawing_file.project_id,
-            (RoomFinish.drawing_sheet_id.is_(None)) | (DrawingSheet.drawing_file_id == drawing_file.id),
+            ((RoomFinish.drawing_file_id == drawing_file.id)
+             & ((RoomFinish.drawing_sheet_id.is_(None)) | (DrawingSheet.drawing_file_id == drawing_file.id)))
+            | ((RoomFinish.drawing_file_id.is_(None)) & (DrawingSheet.drawing_file_id == drawing_file.id)),
         )
         .order_by(RoomFinish.id)
         .all()
@@ -411,12 +480,33 @@ def _validate_merge_rows(target: Measurement, sources: list[Measurement]) -> Non
                 "measurement_ids": mismatched_ids,
             },
         )
+    if any(row.quantity is None or not row.formula or not row.formula.strip() for row in all_measurements):
+        raise HTTPException(status_code=400, detail="Every merged measurement requires a quantity and formula.")
+    for row in all_measurements:
+        try:
+            validate_measurement_values(measurement_type=row.measurement_type, quantity=row.quantity, unit=row.unit,
+                                        formula=row.formula, source_sheets=row.source_sheets,
+                                        status=ReviewStatus.CONFIRMED, category=row.category, finish_code=row.finish_code)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=f"Measurement #{row.id}: {exc}") from exc
 
 
 def _apply_measurement_merge(target: Measurement, sources: list[Measurement]) -> None:
     merge_rows = [target, *sources]
-    if all(measurement.quantity is not None for measurement in merge_rows):
-        target.quantity = sum((measurement.quantity for measurement in merge_rows), Decimal("0.00"))
+    snapshots = [{"measurement_id": row.id, "project_id": row.project_id, "room_finish_id": row.room_finish_id,
+                  "formula": row.formula, "quantity": str(row.quantity), "unit": row.unit,
+                  "source_sheets": row.source_sheets, "coordinates_json": deepcopy(row.coordinates_json),
+                  "deductions_json": deepcopy(row.deductions_json)} for row in merge_rows]
+    quantity = sum((measurement.quantity for measurement in merge_rows), Decimal("0.00"))
+    try:
+        validate_measurement_values(measurement_type=target.measurement_type, quantity=quantity, unit=target.unit,
+                                    formula=target.formula, source_sheets=target.source_sheets,
+                                    status=ReviewStatus.DRAFT, category=target.category, finish_code=target.finish_code)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    target.quantity = quantity
+    target.coordinates_json = {"merge_provenance": {"rows": snapshots}}
+    target.deductions_json = None
 
     formulas = [f"#{measurement.id}: {measurement.formula}" for measurement in merge_rows if measurement.formula]
     if formulas:
@@ -437,6 +527,37 @@ def _merge_key(measurement: Measurement) -> tuple[str | None, str, str, Measurem
         measurement.measurement_type,
         measurement.unit,
     )
+
+
+def _measurement_drawing_file_id(measurement: Measurement) -> int | None:
+    room = measurement.room_finish
+    if room is None or room.project_id != measurement.project_id:
+        return None
+    sheet_file_id = room.drawing_sheet.drawing_file_id if room.drawing_sheet else None
+    if room.drawing_file_id is not None and sheet_file_id is not None and room.drawing_file_id != sheet_file_id:
+        return None
+    file_id = room.drawing_file_id if room.drawing_file_id is not None else sheet_file_id
+    if file_id is None:
+        return None
+    session = object_session(measurement)
+    drawing_file = session.get(DrawingFile, file_id) if session else None
+    return file_id if drawing_file and drawing_file.project_id == measurement.project_id else None
+
+
+def _require_editable(measurement: Measurement) -> None:
+    if measurement.status in {ReviewStatus.CONFIRMED, ReviewStatus.REJECTED}:
+        raise HTTPException(status_code=409, detail="Confirmed or rejected measurements are read-only.")
+    if measurement.room_finish and measurement.room_finish.status == ReviewStatus.REJECTED:
+        raise HTTPException(status_code=409, detail="Measurements of rejected room finishes are read-only.")
+
+
+def _archive_merge_provenance(coordinates: dict) -> dict:
+    provenance = coordinates.pop("merge_provenance", None)
+    if provenance is not None:
+        previous_history = coordinates.get("history", [])
+        history = list(previous_history) if isinstance(previous_history, list) else [{"legacy_history": previous_history}]
+        coordinates["history"] = [*history, {"merge_provenance": provenance}]
+    return coordinates
 
 
 def _merge_csv_values(values: list[str] | tuple[str, ...] | object) -> str:

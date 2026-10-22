@@ -1,5 +1,7 @@
 # ACCEPTANCE_CHECKLIST.md
 
+F01~F07의 추가 저장 계약과 회귀 시나리오는 `docs/INTEGRITY_FIXES.md`를 기준으로 검증합니다. 아래 기존 체크는 실무 정답 정확도나 브라우저 전체 E2E 통과를 의미하지 않습니다.
+
 체크 기준: 2026-05-10 코드 점검, backend pytest, frontend build 기준입니다. 실제 아버님 업무 샘플 PDF로 끝까지 눌러보는 수동 검증은 `docs/QA_SMOKE_TEST.md`에 따라 별도로 진행해야 합니다.
 
 ## 제품 인수 기준

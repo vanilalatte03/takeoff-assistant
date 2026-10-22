@@ -12,6 +12,7 @@ class RoomFinish(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), nullable=False, index=True)
+    drawing_file_id: Mapped[int | None] = mapped_column(ForeignKey("drawing_files.id"), nullable=True, index=True)
     drawing_sheet_id: Mapped[int | None] = mapped_column(
         ForeignKey("drawing_sheets.id"),
         nullable=True,

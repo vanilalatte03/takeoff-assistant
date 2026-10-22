@@ -10,7 +10,8 @@
     "lint": [],
     "test": [
       "cd apps/api && .\\.venv311\\Scripts\\python.exe -m pytest",
-      ".\\apps\\api\\.venv311\\Scripts\\python.exe -m pytest scripts"
+      ".\\apps\\api\\.venv311\\Scripts\\python.exe -m pytest scripts",
+      "cd apps/web && npm run test"
     ],
     "build": [
       "cd apps/web && npm run build"
@@ -24,6 +25,7 @@
     "apps/web/src"
   ],
   "testRoots": [
-    "apps/api/tests"
+    "apps/api/tests",
+    "apps/web/src/test"
   ]
 }

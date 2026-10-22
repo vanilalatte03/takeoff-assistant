@@ -28,14 +28,18 @@ export function DrawingDetailPage() {
   const imageUrl = useMemo(() => pageImageUrl(drawingFileId, pageIndex), [drawingFileId, pageIndex]);
 
   useEffect(() => {
+    let cancelled = false;
     setPageInput(String(pageIndex));
+    setSheet(null);
     setImageError(false);
     setError(null);
     searchDrawingSheets(drawingFileId, {})
       .then((response) => {
+        if (cancelled) return;
         setSheet(response.results.find((result) => result.page_index === pageIndex) ?? null);
       })
-      .catch(setError);
+      .catch((caught) => { if (!cancelled) setError(caught); });
+    return () => { cancelled = true; };
   }, [drawingFileId, pageIndex]);
 
   function handlePageMove(event: FormEvent<HTMLFormElement>) {

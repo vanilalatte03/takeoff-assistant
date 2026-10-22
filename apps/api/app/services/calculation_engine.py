@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from decimal import Decimal, ROUND_HALF_UP
 
 from app.models import CalculationType
+from app.services.measurement_validation import MAX_QUANTITY, nonnegative_decimal, validate_quantity
 
 
 TWO_PLACES = Decimal("0.01")
@@ -43,6 +44,23 @@ class CalculationResult:
 
 def calculate(input_data: CalculationInput) -> CalculationResult:
     calculation_type = input_data.calculation_type
+    for field in ("width", "height", "wall_length", "wall_height", "side_multiplier"):
+        value = getattr(input_data, field)
+        if value is not None:
+            number = nonnegative_decimal(value, field)
+            if number <= 0 or number > MAX_QUANTITY:
+                raise ValueError(f"{field} must be positive and within storage limits.")
+    for deduction in input_data.deductions:
+        if nonnegative_decimal(deduction.amount, "deduction amount") > MAX_QUANTITY:
+            raise ValueError("deduction amount exceeds storage limits.")
+    unit = {
+        CalculationType.AREA_RECTANGLE: "m2", CalculationType.PERIMETER_RECTANGLE: "m",
+        CalculationType.WALL_AREA: "m2", CalculationType.PARTITION_AREA: "m2", CalculationType.COUNT: "EA",
+    }.get(calculation_type)
+    if input_data.unit is not None and unit is not None and input_data.unit != unit:
+        raise ValueError(f"{calculation_type.value} requires unit {unit}.")
+    if input_data.deductions and calculation_type in {CalculationType.COUNT, CalculationType.CUSTOM}:
+        raise ValueError("COUNT and CUSTOM do not accept separate deductions; enter the final custom quantity explicitly.")
     if calculation_type == CalculationType.AREA_RECTANGLE:
         return _calculate_area_rectangle(input_data)
     if calculation_type == CalculationType.PERIMETER_RECTANGLE:
@@ -85,7 +103,7 @@ def _calculate_wall_area(input_data: CalculationInput) -> CalculationResult:
 def _calculate_partition_area(input_data: CalculationInput) -> CalculationResult:
     wall_length = _required_decimal(input_data.wall_length, "wall_length")
     wall_height = _required_decimal(input_data.wall_height, "wall_height")
-    side_multiplier = input_data.side_multiplier or Decimal("1")
+    side_multiplier = input_data.side_multiplier if input_data.side_multiplier is not None else Decimal("1")
     base_quantity = wall_length * wall_height * side_multiplier
     formula = (
         f"{_format_decimal(wall_length)} * "
@@ -97,6 +115,7 @@ def _calculate_partition_area(input_data: CalculationInput) -> CalculationResult
 
 def _calculate_count(input_data: CalculationInput) -> CalculationResult:
     count = _required_decimal(input_data.count, "count")
+    validate_quantity(count, "EA", count=True)
     return CalculationResult(
         formula=_format_decimal(count),
         quantity=_round_quantity(count),
@@ -111,6 +130,7 @@ def _calculate_custom(input_data: CalculationInput) -> CalculationResult:
     custom_quantity = _required_decimal(input_data.custom_quantity, "custom_quantity")
     if not input_data.unit or not input_data.unit.strip():
         raise ValueError("unit is required for CUSTOM calculations.")
+    validate_quantity(custom_quantity, input_data.unit.strip())
     return CalculationResult(
         formula=input_data.custom_formula.strip(),
         quantity=_round_quantity(custom_quantity),
@@ -127,6 +147,7 @@ def _with_deductions(
 ) -> CalculationResult:
     deduction_total = sum((deduction.amount for deduction in input_data.deductions), Decimal("0"))
     quantity = base_quantity - deduction_total
+    validate_quantity(quantity, unit)
     formula = base_formula
     deductions_json = None
     if input_data.deductions:
@@ -164,10 +185,12 @@ def _deduction_formula(deductions: tuple[DeductionInput, ...]) -> str:
 def _required_decimal(value: Decimal | None, field_name: str) -> Decimal:
     if value is None:
         raise ValueError(f"{field_name} is required.")
-    return Decimal(value)
+    return nonnegative_decimal(value, field_name)
 
 
 def _round_quantity(value: Decimal) -> Decimal:
+    if not value.is_finite() or value < 0 or value > MAX_QUANTITY:
+        raise ValueError("quantity must be non-negative and within storage limits.")
     return value.quantize(TWO_PLACES, rounding=ROUND_HALF_UP)
 
 

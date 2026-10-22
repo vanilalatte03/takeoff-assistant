@@ -29,8 +29,15 @@ def client_with_measurement(tmp_path) -> Generator[tuple[TestClient, sessionmake
         project = Project(name="Measurement Update Project")
         session.add(project)
         session.flush()
+        drawing_file = DrawingFile(project_id=project.id, original_filename="sample.pdf", stored_path="unused", page_count=1)
+        session.add(drawing_file)
+        session.flush()
+        room_finish = RoomFinish(project_id=project.id, drawing_file_id=drawing_file.id, room_no="110")
+        session.add(room_finish)
+        session.flush()
         measurement = Measurement(
             project_id=project.id,
+            room_finish_id=room_finish.id,
             room_no="110",
             room_name="OFFICE",
             category="FLOOR",
@@ -203,6 +210,7 @@ def test_merge_measurements_sums_quantity_and_rejects_sources(client_with_measur
         target.memo = "target memo"
         source = Measurement(
             project_id=target.project_id,
+            room_finish_id=target.room_finish_id,
             room_no=target.room_no,
             room_name=target.room_name,
             category=target.category,

@@ -13,6 +13,7 @@
 | install-web | `cd apps/web && npm install` | no | frontend dependency 설치 |
 | test | `cd apps/api && .\.venv311\Scripts\python.exe -m pytest` | yes | backend test 실행 |
 | test-harness | `.\apps\api\.venv311\Scripts\python.exe -m pytest scripts` | yes | repository harness script test 실행 |
+| test-web | `cd apps/web && npm run test` | yes | 계산·페이지 전환·측정 저장의 frontend 회귀 테스트 실행 |
 | build | `cd apps/web && npm run build` | yes | frontend type-check 및 build 실행 |
 | review | `.\apps\api\.venv311\Scripts\python.exe scripts\doctor.py` | no | Codex template 준비 상태 점검 |
 | check | `.\apps\api\.venv311\Scripts\python.exe scripts\checks.py --stage manual` | no | 설정된 lint/test/build check 실행 |
@@ -40,6 +41,9 @@ cd C:\WorkSpace\finish-takeoff\takeoff-assistant
 ```
 
 ## 참고
+
+- F01~F07 무결성 회귀와 기존 SQLite 소속 처리 기준은 `docs/INTEGRITY_FIXES.md`를 참고합니다.
+- 프론트엔드 컴포넌트 테스트 환경은 Node 24에서 검증합니다. 지원 Node 범위는 `apps/web/package.json`의 engines와 `apps/web/README.md`를 따릅니다.
 
 - 명령 자체가 디렉터리를 이동하지 않는 한 저장소 root에서 실행합니다.
 - Backend 명령은 `apps/api/.venv311` Python 3.11 환경을 전제합니다.
