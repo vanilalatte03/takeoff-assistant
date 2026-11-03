@@ -9,7 +9,8 @@
 | dev-api | `.\apps\api\.venv311\Scripts\python.exe -m uvicorn app.main:app --app-dir apps/api --host 127.0.0.1 --port 8000` | no | 로컬 API 실행 |
 | dev-web | `npm.cmd --prefix apps/web run dev -- --host 127.0.0.1 --port 5173 --strictPort` | no | 로컬 Vite 실행 |
 | setup-api-venv | `py -3.11 -m venv apps/api/.venv311` | no | Python 3.11 가상환경 생성 |
-| install-api | `.\apps\api\.venv311\Scripts\python.exe -m pip install -e "./apps/api[dev]" "PyMuPDF==1.27.2.3"` | no | 검증한 PyMuPDF 조합으로 설치 |
+| install-api-deps | `.\apps\api\.venv311\Scripts\python.exe -m pip install --require-hashes --only-binary=:all: -r apps/api/requirements-win-py311.lock` | no | Windows x64/Python 3.11의 해시 고정 의존성 설치 |
+| install-api | `.\apps\api\.venv311\Scripts\python.exe -m pip install --no-deps --no-build-isolation -e "./apps/api[dev]"` | no | 고정 의존성·backend로 로컬 API 설치 |
 | install-web | `npm.cmd --prefix apps/web ci` | no | lockfile 기반 frontend 설치 |
 | test | `.\apps\api\.venv311\Scripts\python.exe -m pytest apps/api/tests` | yes | API 회귀 테스트 |
 | test-harness | `.\apps\api\.venv311\Scripts\python.exe -m pytest scripts` | yes | 운영 스크립트 테스트 |
@@ -29,6 +30,6 @@
 
 `py`가 없다면 Python launcher를 설치하거나 Python 3.11을 가리키는 `python -m venv apps/api/.venv311`을 사용한다. 시스템의 `python`이 다른 버전이면 먼저 버전을 확인한다.
 
-PyMuPDF 1.27.2.3은 검증에 사용한 호환 버전이다. 새 버전의 손상 PDF/Windows 정리 문제는 별도 보강 대상이며, 이 문서 변경으로 해결하지 않는다. 전체 Python lock이 없어 이후 설치의 나머지 의존성 조합은 달라질 수 있다.
+Python 의존성은 `apps/api/requirements-win-py311.lock`으로 설치한다. PyMuPDF 1.28.2의 Windows 손상 PDF 정리 회귀를 수정했으며 기존 1.27.2.3도 업로드 회귀로 비교했다. lock 재생성·보안 검사와 정리 실패 한계는 [설치/PDF 오류 계약](PDF_UPLOAD_REPRODUCIBILITY.md)을 따른다. 다른 플랫폼은 별도 lock 생성과 검증이 필요하다.
 
 기존 DB에 적용하기 전 서버를 종료하고 SQLite DB와 업로드 자료를 백업한다. 문서와 데모 검증은 실제 업무 데이터 대신 별도 DB·합성 PDF를 사용한다.
