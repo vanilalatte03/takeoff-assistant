@@ -6,8 +6,10 @@ from decimal import Decimal
 from io import BytesIO
 
 from openpyxl import Workbook
+from openpyxl.cell import Cell
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.worksheet import Worksheet
 
 from app.models import Measurement, ReviewStatus
 
@@ -104,9 +106,10 @@ def _build_summary_rows(measurements: list[Measurement]) -> list[SummaryRow]:
 
 
 def _populate_summary_sheet(sheet, rows: list[SummaryRow]) -> None:
-    sheet.append(SUMMARY_HEADERS)
+    _append_row(sheet, SUMMARY_HEADERS)
     for row in rows:
-        sheet.append(
+        _append_row(
+            sheet,
             [
                 row.category,
                 row.code,
@@ -119,9 +122,10 @@ def _populate_summary_sheet(sheet, rows: list[SummaryRow]) -> None:
 
 
 def _populate_details_sheet(sheet, measurements: list[Measurement]) -> None:
-    sheet.append(DETAIL_HEADERS)
+    _append_row(sheet, DETAIL_HEADERS)
     for measurement in measurements:
-        sheet.append(
+        _append_row(
+            sheet,
             [
                 _drawing_no_from_source_sheets(measurement.source_sheets),
                 measurement.room_no,
@@ -144,7 +148,7 @@ def _populate_details_sheet(sheet, measurements: list[Measurement]) -> None:
 
 
 def _populate_review_sheet(sheet, measurements: list[Measurement]) -> None:
-    sheet.append(REVIEW_HEADERS)
+    _append_row(sheet, REVIEW_HEADERS)
     review_measurements = sorted(
         (measurement for measurement in measurements if measurement.status != ReviewStatus.REJECTED),
         key=lambda measurement: (
@@ -155,7 +159,8 @@ def _populate_review_sheet(sheet, measurements: list[Measurement]) -> None:
         ),
     )
     for measurement in review_measurements:
-        sheet.append(
+        _append_row(
+            sheet,
             [
                 _drawing_no_from_source_sheets(measurement.source_sheets),
                 measurement.room_no,
@@ -174,6 +179,17 @@ def _populate_review_sheet(sheet, measurements: list[Measurement]) -> None:
         numeric_columns={7},
         widths={1: 16, 2: 14, 3: 24, 4: 16, 5: 22, 6: 36, 7: 14, 8: 10, 9: 16, 10: 34},
     )
+
+
+def _append_row(sheet: Worksheet, values: list[str | Decimal | None]) -> None:
+    cells = []
+    for value in values:
+        cell = Cell(sheet, value=value)
+        if isinstance(value, str):
+            # Formula evidence and user/PDF text are literals, never Excel formulas/errors.
+            cell.data_type = "s"
+        cells.append(cell)
+    sheet.append(cells)
 
 
 def _format_sheet(sheet, numeric_columns: set[int], widths: dict[int, int]) -> None:
