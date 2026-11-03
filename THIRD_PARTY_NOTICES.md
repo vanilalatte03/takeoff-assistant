@@ -29,7 +29,7 @@ PyMuPDF와 MuPDF의 저작권자는 Artifex 및 해당 기여자다. 이 프로�
 
 ## 전이 의존성 중 별도로 확인할 조건
 
-- **caniuse-lite 1.0.30001791 — CC-BY-4.0:** Ben Briggs와 caniuse-lite 기여자의 브라우저 지원 데이터 패키지다. [원본 프로젝트](https://github.com/browserslist/caniuse-lite), [해당 버전](https://www.npmjs.com/package/caniuse-lite/v/1.0.30001791), [CC BY 4.0 조건](https://creativecommons.org/licenses/by/4.0/), 설치 파일 `node_modules/caniuse-lite/LICENSE`를 참고한다. 이 저장소는 해당 패키지를 수정·재배포하지 않으며, 빌드 도구에서 원본 의존성을 사용한다. 데이터를 산출물에 포함해 배포한다면 출처·저작자·라이선스 링크와 변경 여부를 보존한다.
+- **caniuse-lite 1.0.30001820 — CC-BY-4.0:** Ben Briggs와 caniuse-lite 기여자의 브라우저 지원 데이터 패키지다. [원본 프로젝트](https://github.com/browserslist/caniuse-lite), [해당 버전](https://www.npmjs.com/package/caniuse-lite/v/1.0.30001820), [CC BY 4.0 조건](https://creativecommons.org/licenses/by/4.0/), 설치 파일 `node_modules/caniuse-lite/LICENSE`를 참고한다. 이 저장소는 해당 패키지를 수정·재배포하지 않으며, 빌드 도구에서 원본 의존성을 사용한다. 데이터를 산출물에 포함해 배포한다면 출처·저작자·라이선스 링크와 변경 여부를 보존한다.
 - **certifi — MPL-2.0:** Mozilla 루트 인증서 묶음을 포함하는 패키지다. [원본](https://github.com/certifi/python-certifi)과 설치된 배포본의 LICENSE를 따른다. 해당 파일을 별도로 수정·재배포할 때 MPL의 파일 단위 소스 제공 조건을 확인한다.
 - **typing_extensions — PSF-2.0**, **packaging — Apache-2.0 OR BSD-2-Clause** 등도 원래 고지를 유지한다. 모든 전이 의존성을 MIT로 간주하지 않는다.
 
