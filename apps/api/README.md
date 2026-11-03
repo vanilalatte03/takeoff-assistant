@@ -23,11 +23,11 @@ FastAPI backend for the PDF drawing finish takeoff assistant.
 
 ## Development
 
-Use the Python 3.11 environment in `apps/api/.venv311`.
+Follow the [root quickstart](../../README.md) to create the Python 3.11 environment in `apps/api/.venv311`. Run the following from the repository root.
 
-```bash
-.venv311/Scripts/python.exe -m pytest
-.venv311/Scripts/python.exe -m uvicorn app.main:app --reload
+```powershell
+.\apps\api\.venv311\Scripts\python.exe -m pytest apps/api/tests
+.\apps\api\.venv311\Scripts\python.exe -m uvicorn app.main:app --app-dir apps/api --host 127.0.0.1 --port 8000
 ```
 
 The API stores local runtime data under the repository `data/` and `exports/` directories. Uploaded PDFs, rendered pages, SQLite databases, logs, and generated Excel files should stay out of git.

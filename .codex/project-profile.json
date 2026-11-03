@@ -4,17 +4,17 @@
   "guardMode": "soft",
   "commands": {
     "dev": [
-      "cd apps/api && .\\.venv311\\Scripts\\python.exe -m uvicorn app.main:app --reload",
-      "cd apps/web && npm run dev"
+      ".\\apps\\api\\.venv311\\Scripts\\python.exe -m uvicorn app.main:app --app-dir apps/api --host 127.0.0.1 --port 8000",
+      "npm.cmd --prefix apps/web run dev -- --host 127.0.0.1 --port 5173 --strictPort"
     ],
     "lint": [],
     "test": [
-      "cd apps/api && .\\.venv311\\Scripts\\python.exe -m pytest",
+      ".\\apps\\api\\.venv311\\Scripts\\python.exe -m pytest apps/api/tests",
       ".\\apps\\api\\.venv311\\Scripts\\python.exe -m pytest scripts",
-      "cd apps/web && npm run test"
+      "npm.cmd --prefix apps/web test"
     ],
     "build": [
-      "cd apps/web && npm run build"
+      "npm.cmd --prefix apps/web run build"
     ],
     "review": [
       ".\\apps\\api\\.venv311\\Scripts\\python.exe scripts\\doctor.py"
