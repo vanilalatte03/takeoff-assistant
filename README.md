@@ -152,6 +152,12 @@ npm.cmd --prefix apps/web run build
 
 F01~F07 수정 당시 기록은 API 158개 통과·비공개 PDF 테스트 2개 생략, 운영 스크립트 71개 통과, UI 26개 통과입니다. 비공개 샘플이 없으면 관련 테스트는 생략됩니다. UI 회귀는 테스트 DOM을 사용하며 실제 브라우저 전체 E2E와 구분합니다. 최신 검증은 각 환경에서 위 명령으로 확인할 수 있습니다.
 
+## 지속적 통합 (CI)
+
+GitHub Actions의 [CI workflow](.github/workflows/ci.yml)는 `main` 대상 PR과 `main` push에서 **Windows checks**를 실행합니다. Windows x64 / Python 3.11 / Node.js 24 환경에서 해시 고정 Python 의존성 설치, npm lock 설치, API·운영 스크립트·UI 테스트와 build, 공개 빈 Excel 템플릿 검증을 수행합니다.
+
+비공개 PDF 샘플 테스트는 자료가 없어 생략될 수 있습니다. CI 통과는 실제 브라우저 전체 흐름이나 실무 산출 정확도 검증을 뜻하지 않습니다. [CI 실행·실패 확인 방법](docs/COMMANDS.md#github-actions-ci)을 참고하세요.
+
 ## 지원 제한과 남은 과제
 
 - 텍스트가 있는 PDF와 영어 도면명·마감표 중심의 휴리스틱입니다. 스캔 PDF OCR, 한글 방 이름 검색, 모든 마감표 형식을 지원하지 않습니다.
