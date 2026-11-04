@@ -36,3 +36,26 @@
 Python 의존성은 `apps/api/requirements-win-py311.lock`으로 설치한다. PyMuPDF 1.28.2의 Windows 손상 PDF 정리 회귀를 수정했으며 기존 1.27.2.3도 업로드 회귀로 비교했다. lock 재생성·보안 검사와 정리 실패 한계는 [설치/PDF 오류 계약](PDF_UPLOAD_REPRODUCIBILITY.md)을 따른다. 다른 플랫폼은 별도 lock 생성과 검증이 필요하다.
 
 기존 DB에 적용하기 전 서버를 종료하고 SQLite DB와 업로드 자료를 백업한다. 문서와 데모 검증은 실제 업무 데이터 대신 별도 DB·합성 PDF를 사용한다.
+
+## GitHub Actions CI
+
+[`.github/workflows/ci.yml`](../.github/workflows/ci.yml)는 다음 이벤트에서 `Windows checks` job을 실행합니다.
+
+- `main`을 대상으로 하는 PR 생성·업데이트·재개
+- `main` push
+- Actions 화면의 **Run workflow** 수동 실행. 이 메뉴는 workflow가 기본 브랜치에 반영된 뒤 사용할 수 있습니다.
+
+Windows Server 2022 x64 / Python 3.11 / Node.js 24에서 README의 Python 해시 lock·editable 설치와 `npm.cmd ci` 절차를 실행합니다. `pip check`, `doctor.py`, `checks.py --stage manual`, 공개 빈 Excel 템플릿 검증이 실패하면 job도 실패합니다. 테스트·빌드 목록은 `.codex/project-profile.json`을 따릅니다. 비공개 실제 dataset은 CI에서 사용하지 않으며, 비공개 PDF 샘플 테스트 2개는 샘플이 없으면 생략됩니다.
+
+Python의 UTF-8 모드를 켜 한글이 포함된 테스트 파일과 하위 프로세스 출력을 처리합니다. action은 전체 commit SHA로 고정하고 checkout 자격 증명은 작업 폴더에 보존하지 않습니다. workflow 권한은 `contents: read`이며 별도 secret은 필요하지 않습니다. pip/npm 다운로드 캐시는 각각 lockfile을 기준으로 재사용하고, 같은 PR·브랜치의 이전 실행은 새 실행이 시작되면 취소합니다.
+
+실패하면 PR의 **Checks → Windows checks → Details** 또는 저장소 **Actions → CI**에서 실패 step의 로그를 확인합니다. 로컬 재현에는 위 표의 설치 명령과 다음 명령을 사용합니다.
+
+```powershell
+.\apps\api\.venv311\Scripts\python.exe -m pip check
+.\apps\api\.venv311\Scripts\python.exe scripts/doctor.py
+.\apps\api\.venv311\Scripts\python.exe scripts/checks.py --stage manual
+.\apps\api\.venv311\Scripts\python.exe scripts/validate_example_dataset.py docs/templates/example_dataset_template.xlsx --allow-empty-template
+```
+
+CI는 서버 배포나 브라우저 E2E를 수행하지 않습니다. `Windows checks`를 필수 머지 조건으로 지정하는 repository ruleset 설정은 별도 작업입니다.
