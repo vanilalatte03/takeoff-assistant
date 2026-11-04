@@ -19,6 +19,9 @@
 | review | `.\apps\api\.venv311\Scripts\python.exe scripts/doctor.py` | no | 저장소 운영 설정 확인 |
 | check | `.\apps\api\.venv311\Scripts\python.exe scripts/checks.py --stage manual` | no | profile에 등록한 검사 전체 실행 |
 | phase | `.\apps\api\.venv311\Scripts\python.exe scripts/execute.py <phase-name>` | no | 기여자용 phase 실행 |
+| create-dataset-template | `.\apps\api\.venv311\Scripts\python.exe scripts/create_example_dataset_template.py` | no | 공개용 빈 Excel 템플릿 재생성 |
+| check-dataset-template | `.\apps\api\.venv311\Scripts\python.exe scripts/validate_example_dataset.py docs/templates/example_dataset_template.xlsx --allow-empty-template` | no | 공개 템플릿 구조 확인 |
+| validate-dataset | `.\apps\api\.venv311\Scripts\python.exe scripts/validate_example_dataset.py data/samples/takeoff_example_dataset_private.xlsx` | no | 비공개 산출 예시 workbook 구조·필수 값 확인 |
 
 `.codex/project-profile.json`과 이 표의 test/build 명령을 동기화한다. `checks.py`는 profile의 검사 명령을 우선 사용한다. `doctor.py`는 설정 점검이며 앱의 실무 정확도를 검증하는 명령이 아니다.
 
