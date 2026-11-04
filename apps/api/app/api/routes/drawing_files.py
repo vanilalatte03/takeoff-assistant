@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from shutil import copyfileobj
 from uuid import uuid4
@@ -35,6 +36,7 @@ from app.services import (
 
 
 router = APIRouter(prefix="/drawing-files", tags=["drawing-files"])
+logger = logging.getLogger(__name__)
 
 
 def _safe_pdf_filename(filename: str | None) -> str:
@@ -48,14 +50,31 @@ def _safe_pdf_filename(filename: str | None) -> str:
 
 
 def _count_pdf_pages(path: Path) -> int:
+    # Close Python's disk handle before entering PyMuPDF. A failed native
+    # constructor can retain its stream in the exception traceback on Windows.
+    content = path.read_bytes()
     try:
-        with fitz.open(path) as document:
+        with fitz.open(stream=content, filetype="pdf") as document:
             return document.page_count
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Uploaded file is not a valid PDF.",
         ) from exc
+
+
+def _remove_failed_upload(path: Path) -> None:
+    try:
+        path.unlink(missing_ok=True)
+    except OSError as exc:
+        # Preserve the upload error, but leave an actionable cleanup signal.
+        # Only log the generated UUID, never the user-supplied filename/path.
+        logger.error(
+            "Upload cleanup failed; manual removal required: upload_id=%s errno=%s winerror=%s",
+            path.name.split("_", 1)[0],
+            exc.errno,
+            getattr(exc, "winerror", None),
+        )
 
 
 def _rendered_page_path(drawing_file_id: int, page_index: int) -> Path:
@@ -120,9 +139,8 @@ def upload_drawing_file(
         with stored_path.open("wb") as target:
             copyfileobj(file.file, target)
         page_count = _count_pdf_pages(stored_path)
-    except HTTPException:
-        if stored_path.exists():
-            stored_path.unlink()
+    except Exception:
+        _remove_failed_upload(stored_path)
         raise
     finally:
         file.file.close()

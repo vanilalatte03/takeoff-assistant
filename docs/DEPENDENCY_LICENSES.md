@@ -4,18 +4,18 @@
 
 ## Python
 
-Python 3.11.9 / Windows에서 설치한 API runtime 및 dev 의존성의 현재 플랫폼 dependency closure다. `apps/api/pyproject.toml`의 runtime/dev와 uvicorn standard extras를 따라 수집했다. pip/setuptools 등 환경 관리 도구는 제외했다. 버전 고정 파일이 아니며 다른 플랫폼의 조건부 의존성이나 이후 설치 결과는 달라질 수 있다.
+Python 3.11.9 / Windows x64의 `apps/api/requirements-win-py311.lock`을 새 가상환경에 해시 검증으로 설치한 결과다. API runtime/dev, uvicorn standard extras, 루트 스크립트 테스트 의존성 및 editable 빌드 backend인 setuptools를 포함한 35개 배포 패키지다. pip와 별도 lock/audit 도구 환경은 제외한다. 다른 플랫폼의 조건부 의존성은 포함하지 않으며, 아래 선언은 설치된 `importlib.metadata`에서 수집했다. lock 재생성과 검사 절차는 [설치 재현성 문서](PDF_UPLOAD_REPRODUCIBILITY.md)를 따른다.
 
 | 배포 패키지 | 확인 버전 | 선언 라이선스 | 원본 metadata |
 | --- | --- | --- | --- |
 | annotated-doc | 0.0.5 | MIT | [PyPI](https://pypi.org/project/annotated-doc/0.0.5/) |
 | annotated-types | 0.8.0 | MIT | [PyPI](https://pypi.org/project/annotated-types/0.8.0/) |
-| anyio | 4.15.1 | MIT | [PyPI](https://pypi.org/project/anyio/4.15.1/) |
-| certifi | 2026.10.19 | MPL-2.0 | [PyPI](https://pypi.org/project/certifi/2026.10.19/) |
+| anyio | 4.16.0 | MIT | [PyPI](https://pypi.org/project/anyio/4.16.0/) |
+| certifi | 2026.10.23 | MPL-2.0 | [PyPI](https://pypi.org/project/certifi/2026.10.23/) |
 | click | 8.5.0 | BSD-3-Clause | [PyPI](https://pypi.org/project/click/8.5.0/) |
 | colorama | 0.4.6 | BSD-3-Clause (installed LICENSE.txt verified) | [PyPI](https://pypi.org/project/colorama/0.4.6/) |
 | et_xmlfile | 2.0.0 | MIT | [PyPI](https://pypi.org/project/et_xmlfile/2.0.0/) |
-| fastapi | 0.159.1 | MIT | [PyPI](https://pypi.org/project/fastapi/0.159.1/) |
+| fastapi | 0.162.0 | MIT | [PyPI](https://pypi.org/project/fastapi/0.162.0/) |
 | h11 | 0.16.0 | MIT | [PyPI](https://pypi.org/project/h11/0.16.0/) |
 | httpcore | 1.0.9 | BSD-3-Clause | [PyPI](https://pypi.org/project/httpcore/1.0.9/) |
 | httptools | 0.9.0 | MIT | [PyPI](https://pypi.org/project/httptools/0.9.0/) |
@@ -23,25 +23,26 @@ Python 3.11.9 / Windows에서 설치한 API runtime 및 dev 의존성의 현재 
 | idna | 3.20 | BSD-3-Clause | [PyPI](https://pypi.org/project/idna/3.20/) |
 | iniconfig | 2.3.1 | MIT | [PyPI](https://pypi.org/project/iniconfig/2.3.1/) |
 | openpyxl | 3.1.5 | MIT | [PyPI](https://pypi.org/project/openpyxl/3.1.5/) |
-| opentelemetry-api | 1.45.1 | Apache-2.0 | [PyPI](https://pypi.org/project/opentelemetry-api/1.45.1/) |
+| opentelemetry-api | 1.45.2 | Apache-2.0 | [PyPI](https://pypi.org/project/opentelemetry-api/1.45.2/) |
 | packaging | 26.3 | Apache-2.0 OR BSD-2-Clause | [PyPI](https://pypi.org/project/packaging/26.3/) |
 | pluggy | 1.7.0 | MIT | [PyPI](https://pypi.org/project/pluggy/1.7.0/) |
-| pydantic | 2.14.1 | MIT | [PyPI](https://pypi.org/project/pydantic/2.14.1/) |
-| pydantic-settings | 2.16.1 | MIT | [PyPI](https://pypi.org/project/pydantic-settings/2.16.1/) |
-| pydantic_core | 2.50.1 | MIT | [PyPI](https://pypi.org/project/pydantic_core/2.50.1/) |
+| pydantic | 2.14.2 | MIT | [PyPI](https://pypi.org/project/pydantic/2.14.2/) |
+| pydantic_core | 2.50.2 | MIT | [PyPI](https://pypi.org/project/pydantic_core/2.50.2/) |
+| pydantic-settings | 2.16.2 | MIT | [PyPI](https://pypi.org/project/pydantic-settings/2.16.2/) |
 | Pygments | 2.21.0 | BSD-2-Clause | [PyPI](https://pypi.org/project/Pygments/2.21.0/) |
-| PyMuPDF | 1.27.2.3 | AGPL v3 / Artifex Commercial | [PyPI](https://pypi.org/project/PyMuPDF/1.27.2.3/) |
-| pytest | 8.4.2 | MIT | [PyPI](https://pypi.org/project/pytest/8.4.2/) |
+| pymupdf | 1.28.2 | AGPL v3 / Artifex Commercial | [PyPI](https://pypi.org/project/pymupdf/1.28.2/) |
+| pytest | 9.2.0 | MIT | [PyPI](https://pypi.org/project/pytest/9.2.0/) |
 | python-dotenv | 1.2.4 | BSD-3-Clause | [PyPI](https://pypi.org/project/python-dotenv/1.2.4/) |
-| python-multipart | 0.0.32 | Apache-2.0 | [PyPI](https://pypi.org/project/python-multipart/0.0.32/) |
+| python-multipart | 0.0.33 | Apache-2.0 | [PyPI](https://pypi.org/project/python-multipart/0.0.33/) |
 | PyYAML | 6.0.3 | MIT | [PyPI](https://pypi.org/project/PyYAML/6.0.3/) |
+| setuptools | 84.2.1 | MIT | [PyPI](https://pypi.org/project/setuptools/84.2.1/) |
 | SQLAlchemy | 2.1.6 | MIT | [PyPI](https://pypi.org/project/SQLAlchemy/2.1.6/) |
-| starlette | 1.9.0 | BSD-3-Clause | [PyPI](https://pypi.org/project/starlette/1.9.0/) |
-| typing-inspection | 0.4.4 | MIT | [PyPI](https://pypi.org/project/typing-inspection/0.4.4/) |
+| starlette | 1.10.0 | BSD-3-Clause | [PyPI](https://pypi.org/project/starlette/1.10.0/) |
 | typing_extensions | 4.16.0 | PSF-2.0 | [PyPI](https://pypi.org/project/typing_extensions/4.16.0/) |
+| typing-inspection | 0.4.4 | MIT | [PyPI](https://pypi.org/project/typing-inspection/0.4.4/) |
 | uvicorn | 0.54.0 | BSD-3-Clause | [PyPI](https://pypi.org/project/uvicorn/0.54.0/) |
 | watchfiles | 1.3.0 | MIT | [PyPI](https://pypi.org/project/watchfiles/1.3.0/) |
-| websockets | 17.3 | BSD-3-Clause | [PyPI](https://pypi.org/project/websockets/17.3/) |
+| websockets | 17.4 | BSD-3-Clause | [PyPI](https://pypi.org/project/websockets/17.4/) |
 
 ## npm
 
@@ -236,3 +237,11 @@ Python 3.11.9 / Windows에서 설치한 API runtime 및 dev 의존성의 현재 
 | xml-name-validator | 5.0.0 | Apache-2.0 | dev | `node_modules/xml-name-validator` |
 | xmlchars | 2.2.0 | MIT | dev | `node_modules/xmlchars` |
 | yallist | 3.1.1 | ISC | dev | `node_modules/yallist` |
+
+확인한 범위: Python 35개 배포 패키지, npm 187개 lockfile entry. 라이선스가 자동 판별되지 않은 entry는 없다. 선언 문자열이 존재한다는 뜻이며 권리·호환성 보증은 아니다.
+
+## 갱신과 배포
+
+의존성을 바꾸면 이 목록과 `THIRD_PARTY_NOTICES.md`를 함께 검토한다. Python은 실제 배포 환경의 `importlib.metadata`, npm은 lockfile 및 설치된 각 package의 LICENSE/NOTICE를 확인한다. 직접 의존성만 검토하고 전이 의존성을 생략하지 않는다.
+
+빌드 산출물·wheel·컨테이너·설치 패키지를 배포할 경우 실제 포함 버전의 원본 저작권·라이선스·NOTICE와 필요한 소스 제공 방식을 별도로 구성한다. 소스 저장소의 요약 표만으로 바이너리 배포 의무를 대체하지 않는다.

@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.api.routes import drawing_files
 from app.core.config import settings
 from app.db.init_db import init_db
 from app.db.session import get_db
@@ -108,7 +109,8 @@ def test_upload_rejects_non_pdf_extension(client_with_db) -> None:
     assert response.json()["detail"] == "Only PDF files are supported."
 
 
-def test_upload_rejects_invalid_pdf_content(client_with_db) -> None:
+@pytest.mark.parametrize("content", [b"not a real pdf", b"", b"%PDF-1.7\ntruncated"])
+def test_upload_rejects_invalid_pdf_content(client_with_db, content) -> None:
     client, session_factory = client_with_db
     with session_factory() as session:
         project = Project(name="Upload Test Project")
@@ -120,12 +122,70 @@ def test_upload_rejects_invalid_pdf_content(client_with_db) -> None:
     response = client.post(
         "/drawing-files/upload",
         data={"project_id": str(project_id)},
-        files={"file": ("broken.pdf", b"not a real pdf", "application/pdf")},
+        files={"file": ("broken.pdf", content, "application/pdf")},
     )
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Uploaded file is not a valid PDF."
     assert not list(settings.uploads_dir.rglob("*broken.pdf"))
+    with session_factory() as session:
+        assert session.query(DrawingFile).count() == 0
+
+
+def test_invalid_pdf_cleanup_failure_preserves_400_and_logs_identifier(
+    client_with_db, monkeypatch, caplog
+) -> None:
+    client, session_factory = client_with_db
+    project_id = client.post("/projects", json={"name": "Cleanup Test"}).json()["id"]
+    real_unlink = Path.unlink
+
+    def deny_upload_delete(path, *args, **kwargs):
+        if settings.uploads_dir in path.parents:
+            raise PermissionError(13, "simulated sharing violation")
+        return real_unlink(path, *args, **kwargs)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(Path, "unlink", deny_upload_delete)
+        response = client.post(
+            "/drawing-files/upload",
+            data={"project_id": str(project_id)},
+            files={"file": ("private-drawing.pdf", b"invalid", "application/pdf")},
+        )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Uploaded file is not a valid PDF."
+    with session_factory() as session:
+        assert session.query(DrawingFile).count() == 0
+    leftovers = list(settings.uploads_dir.rglob("*.pdf"))
+    assert len(leftovers) == 1
+    assert "manual removal required" in caplog.text
+    assert leftovers[0].name.split("_", 1)[0] in caplog.text
+    assert "private-drawing" not in caplog.text
+    assert str(settings.uploads_dir) not in caplog.text
+    leftovers[0].unlink()
+
+
+def test_partial_copy_failure_removes_file_and_closes_upload(client_with_db, monkeypatch) -> None:
+    client, session_factory = client_with_db
+    project_id = client.post("/projects", json={"name": "Copy Test"}).json()["id"]
+    uploads = []
+
+    def fail_copy(source, target):
+        uploads.append(source)
+        target.write(b"partial")
+        raise OSError("simulated disk failure")
+
+    monkeypatch.setattr(drawing_files, "copyfileobj", fail_copy)
+    with pytest.raises(OSError, match="simulated disk failure"):
+        client.post(
+            "/drawing-files/upload",
+            data={"project_id": str(project_id)},
+            files={"file": ("partial.pdf", _make_pdf(), "application/pdf")},
+        )
+    assert uploads[0].closed
+    assert not list(settings.uploads_dir.rglob("*.pdf"))
+    with session_factory() as session:
+        assert session.query(DrawingFile).count() == 0
 
 
 def test_upload_requires_existing_project(client_with_db) -> None:

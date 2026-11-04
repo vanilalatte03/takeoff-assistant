@@ -1,4 +1,5 @@
 from collections.abc import Generator
+from contextlib import closing
 from decimal import Decimal
 from io import BytesIO
 
@@ -12,6 +13,7 @@ from app.db.init_db import init_db
 from app.db.session import get_db
 from app.main import app
 from app.models import DrawingFile, DrawingSheet, Measurement, MeasurementType, Project, ReviewStatus, RoomFinish
+from app.services.measurement_excel_exporter import build_measurements_workbook
 
 
 @pytest.fixture()
@@ -230,3 +232,102 @@ def test_measurement_export_requires_existing_drawing_file(client_with_export_da
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Drawing file not found."
+
+
+def test_measurement_export_preserves_formula_like_user_text(client_with_export_data) -> None:
+    client, drawing_file_id = client_with_export_data
+    measurements = client.get(f"/drawing-files/{drawing_file_id}/measurements").json()
+    measurement_id = measurements[0]["id"]
+    with closing(app.dependency_overrides[get_db]()) as sessions:
+        session = next(sessions)
+        session.get(Measurement, measurement_id).room_name = "=1+1"
+        session.commit()
+    response = client.patch(
+        f"/measurements/{measurement_id}",
+        json={"memo": "=1+1", "formula": "=1+1"},
+    )
+    assert response.status_code == 200
+
+    response = client.get(f"/drawing-files/{drawing_file_id}/measurements/export")
+    assert response.status_code == 200
+    workbook = load_workbook(BytesIO(response.content), data_only=False)
+    for sheet_name, coordinates in {
+        "Details": ("C2", "F2", "K2"),
+        "Review": ("C2", "F2", "J2"),
+    }.items():
+        for coordinate in coordinates:
+            cell = workbook[sheet_name][coordinate]
+            assert cell.value == "=1+1"
+            assert cell.data_type == "s"
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["=1+1", "=", "+1+1", "-1+1", "@SUM(A1:A2)", "#N/A", "00110", "한글 마감 🏠\n검토 필요"],
+)
+def test_workbook_keeps_all_text_columns_as_strings(text) -> None:
+    measurement = Measurement(
+        id=1,
+        room_no=text,
+        room_name=text,
+        category=text,
+        finish_code=text,
+        formula=text,
+        quantity=Decimal("12.50"),
+        unit=text,
+        source_sheets=text,
+        status=ReviewStatus.NEEDS_REVIEW,
+        memo=text,
+    )
+    output = build_measurements_workbook([measurement])
+    workbook = load_workbook(output, data_only=False)
+    for sheet_name, text_columns, quantity_column, status_column in [
+        ("Summary", (1, 2, 3, 5), 4, None),
+        ("Details", (1, 2, 3, 4, 5, 6, 8, 9, 11), 7, 10),
+        ("Review", (1, 2, 3, 4, 5, 6, 8, 10), 7, 9),
+    ]:
+        sheet = workbook[sheet_name]
+        for column in text_columns:
+            cell = sheet.cell(2, column)
+            assert cell.value == text
+            assert cell.data_type == "s"
+        quantity = sheet.cell(2, quantity_column)
+        assert quantity.value == 12.5
+        assert quantity.data_type == "n"
+        assert quantity.number_format == "0.00"
+        if status_column is not None:
+            assert sheet.cell(2, status_column).value == "NEEDS_REVIEW"
+        assert all(cell.data_type != "f" for row in sheet for cell in row)
+
+    output.seek(0)
+    values_workbook = load_workbook(output, data_only=True)
+    assert values_workbook["Details"]["F2"].value == text
+    assert values_workbook["Review"]["J2"].value == text
+
+
+@pytest.mark.parametrize("blank", [None, ""])
+def test_workbook_preserves_blank_fields_and_missing_quantity(blank) -> None:
+    measurement = Measurement(
+        id=1,
+        room_no=blank,
+        room_name=blank,
+        category="FLOOR",
+        finish_code="VCT",
+        formula=blank,
+        quantity=None,
+        unit=blank,
+        source_sheets="",
+        status=ReviewStatus.DRAFT,
+        memo=blank,
+    )
+    workbook = load_workbook(build_measurements_workbook([measurement]), data_only=False)
+    assert workbook["Summary"].max_row == 1
+    for sheet_name, columns in [
+        ("Details", (1, 2, 3, 6, 7, 8, 9, 11)),
+        ("Review", (1, 2, 3, 6, 7, 8, 10)),
+    ]:
+        sheet = workbook[sheet_name]
+        for column in columns:
+            assert sheet.cell(2, column).value is None
+        assert sheet["G2"].data_type == "n"
+        assert sheet["G2"].number_format == "0.00"

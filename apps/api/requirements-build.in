@@ -1,0 +1,2 @@
+# Editable install uses --no-build-isolation with this locked backend.
+setuptools==84.2.1
