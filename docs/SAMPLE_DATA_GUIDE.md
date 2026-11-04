@@ -75,3 +75,34 @@ quantity: 11.34
 unit: m2
 status: CONFIRMED
 ```
+
+## 4차 산출 예시 데이터셋
+
+4차 private dataset은 실제 산출 예시 row를 모으는 workbook입니다.
+
+권장 private 파일명:
+
+```text
+data/samples/takeoff_example_dataset_private.xlsx
+```
+
+이 파일은 git에 커밋하지 않습니다. 저장소에는 익명화 템플릿만 둡니다.
+
+```text
+docs/templates/example_dataset_template.xlsx
+```
+
+작성 후 다음 명령으로 구조와 필수 값을 검증합니다.
+
+```powershell
+.\apps\api\.venv311\Scripts\python.exe scripts\validate_example_dataset.py data\samples\takeoff_example_dataset_private.xlsx
+```
+
+검증 대상:
+
+- `TakeoffRows`에 실제 산출 row 20~50개가 있다.
+- 각 row가 source sheet, formula, quantity, unit, status를 가진다.
+- `deductions_json`과 `evidence_json`이 비어 있지 않다면 JSON으로 parse된다.
+- workbook cell에 로컬 절대 경로나 `data/samples/` 같은 private path가 없다.
+
+작성·재생성 방법과 검증 범위는 [템플릿 안내](templates/README.md)를 참고하세요. 검증 통과가 개인정보 제거·계산 정답·실무 검수를 보증하지 않습니다.
