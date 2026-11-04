@@ -10,6 +10,8 @@ dist/
 build/
 .vite/
 .env
+.env.*
+!.env.example
 .DS_Store
 *.log
 *.db
@@ -24,7 +26,12 @@ data/rendered/*
 exports/*
 !exports/.gitkeep
 *.xlsx
+!docs/templates/example_dataset_template.xlsx
 
 # Codex operating template runtime output
 phases/**/phase*-output.json
 phases/**/step*-output.json
+
+# Local capture, drawing-generation, and browser runtime output
+output/
+.playwright-cli/
