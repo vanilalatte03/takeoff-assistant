@@ -32,11 +32,12 @@ Git, Python 3.11, Node.js 24를 설치합니다. `py -3.11 --version`, `node --v
 git clone https://github.com/vanilalatte03/takeoff-assistant.git
 cd takeoff-assistant
 py -3.11 -m venv apps/api/.venv311
-.\apps\api\.venv311\Scripts\python.exe -m pip install -e "./apps/api[dev]" "PyMuPDF==1.27.2.3"
+.\apps\api\.venv311\Scripts\python.exe -m pip install --require-hashes --only-binary=:all: -r apps/api/requirements-win-py311.lock
+.\apps\api\.venv311\Scripts\python.exe -m pip install --no-deps --no-build-isolation -e "./apps/api[dev]"
 npm.cmd --prefix apps/web ci
 ```
 
-`PyMuPDF==1.27.2.3`은 검증에 사용한 호환 버전입니다. 새 PyMuPDF 조합에서는 Windows의 손상 PDF 정리 실패가 확인되어 현재 시작 명령에서 버전을 명시합니다. 전체 Python 의존성 lock은 없으므로 모든 설치 조합의 재현성을 보장하지는 않습니다.
+Python lock은 Windows x64 / Python 3.11용이며 API·개발·스크립트 테스트 의존성과 editable 빌드 backend를 고정합니다. PyMuPDF 1.28.2에서 손상 PDF 정리 오류를 재현해 수정했습니다. 다른 플랫폼/버전의 전체 실행은 검증하지 않았습니다. [설치 재현·보안 검사·PDF 오류 계약](docs/PDF_UPLOAD_REPRODUCIBILITY.md)을 참고하세요.
 
 첫 번째 터미널에서 API를 시작합니다.
 
@@ -82,7 +83,7 @@ F01~F07 수정 당시 기록은 API 158개 통과·비공개 PDF 테스트 2개 
 - 텍스트가 있는 PDF와 영어 도면명·마감표 중심의 휴리스틱입니다. 스캔 PDF OCR, 한글 방 이름 검색, 모든 마감표 형식을 지원하지 않습니다.
 - 자동 방 경계·치수선·문/창문 공제 인식은 없습니다. 숫자 후보의 단위와 방·벽의 대응은 사람이 확인해야 합니다.
 - 회전 PDF의 영역/텍스트 좌표 정합과 벽 방향별 서로 다른 마감의 분리 산출은 미완료입니다.
-- Excel 텍스트의 수식 해석 방지, Python 의존성 고정, 알려진 개발 의존성 보안 갱신은 별도 보강 대상입니다. 출처를 신뢰할 수 있는 합성·본인 자료로 검증합니다.
+- Excel 텍스트의 수식 해석 방지와 npm 개발 의존성 보안 갱신은 별도 보강 대상입니다. Python 의존성은 Windows/Python 3.11 lock으로 설치합니다. 출처를 신뢰할 수 있는 합성·본인 자료로 검증합니다.
 - 다중 사용자, 클라우드 배포, 견적 시스템 연동을 제공하지 않습니다.
 
 기능 구현·자동 테스트 통과와 실무 정답 검수는 별개입니다. 최종 물량은 원본 도면 및 도메인 전문가의 검토가 필요합니다.

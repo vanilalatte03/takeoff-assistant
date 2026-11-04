@@ -25,6 +25,8 @@ FastAPI backend for the PDF drawing finish takeoff assistant.
 
 Follow the [root quickstart](../../README.md) to create the Python 3.11 environment in `apps/api/.venv311`. Run the following from the repository root.
 
+Install `requirements-win-py311.lock` with hash checking before the editable API install (`--no-deps --no-build-isolation`). The lock targets Windows x64 / Python 3.11 and includes runtime/dev dependencies and the setuptools backend. See [lock regeneration, security audit, and invalid PDF cleanup contract](../../docs/PDF_UPLOAD_REPRODUCIBILITY.md).
+
 ```powershell
 .\apps\api\.venv311\Scripts\python.exe -m pytest apps/api/tests
 .\apps\api\.venv311\Scripts\python.exe -m uvicorn app.main:app --app-dir apps/api --host 127.0.0.1 --port 8000

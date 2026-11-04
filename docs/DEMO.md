@@ -76,7 +76,7 @@ print(out.as_posix())
 - 이미지 없음: `Process pages`가 완료됐는지 확인한다.
 - 마감 후보 없음: sheet 역할이 `FINISH_SCHEDULE`인지 확인하고, 필요하면 수동 입력 흐름을 사용한다. 실제 PDF의 표 구조에 따라 결과가 달라질 수 있다.
 - 5173 포트 사용 중: 기존 서버를 확인한다. `--strictPort` 때문에 다른 포트로 조용히 이동하지 않는다.
-- 손상 PDF 정리 오류: 현재 호환 설치 명령은 PyMuPDF 1.27.2.3을 사용한다. 새 버전 조합의 알려진 문제를 해결한 것으로 보지 않는다.
+- 손상 PDF 정리 오류: 현재 설치는 PyMuPDF 1.28.2가 포함된 Python lock을 사용한다. Windows 파일 핸들 문제는 메모리 스트림 검증으로 수정했다. 외부 잠금·권한으로 정리가 실패하면 로그의 upload_id를 확인하고 [PDF 오류·수동 정리 계약](PDF_UPLOAD_REPRODUCIBILITY.md)을 따른다.
 
 ## 검증 기록
 
