@@ -177,3 +177,8 @@ Excel export는 세 worksheet를 만듭니다.
 7. Summary와 Details Excel workbook을 export할 수 있습니다.
 8. Review sheet가 rejected row를 제외한 검수용 목록을 제공합니다.
 9. 모든 계산 수량이 source sheet number를 유지합니다.
+
+
+### AI 보조 PRD 후속 구현
+
+`docs/AI_ASSIST_PRD.md`의 발전 초안을 기준으로 기존 4차 데이터셋 작업과 별도로 `phases/5-ai-assist/`를 진행한다. 이름 기반 PDF 선택, 산출 탐색·마감/치수 근거, 사용자 검수 입력으로 계산 초안 저장, 선택 영역 Vision, 실사용 비교 기록을 구현했다. 실제 130페이지 private PDF와 제공 예제 두 건의 개발자 재현·Excel 대조를 수행했다. 사용자 제공 설정으로 실제 모델의 합성 검색·이미지 판독 9항목이 통과했다. 실제 도면의 정답·실무 검수·작업시간 비교는 미완료다. 사용 안내는 `docs/AI_ASSIST_HANDOFF.md`, 요구사항 감사는 `docs/AI_ASSIST_AUDIT.md`, 상세 증거는 `docs/AI_ASSIST_PROGRESS.md`를 참조한다.

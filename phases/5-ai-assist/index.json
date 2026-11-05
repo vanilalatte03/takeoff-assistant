@@ -1,0 +1,36 @@
+{
+  "project": "takeoff-assistant",
+  "phase": "5-ai-assist",
+  "steps": [
+    {
+      "step": 0,
+      "name": "baseline-and-selection",
+      "status": "completed",
+      "summary": "합성 PDF→Excel 기준 사례, 이름 기반 PDF 선택, 확정 행 재계산 보호를 구현하고 검증"
+    },
+    {
+      "step": 1,
+      "name": "evidence-search",
+      "status": "completed",
+      "summary": "사용자 제공 설정으로 실모델 합성 검색·E-01~E-06 계약 확인, 키는 외부 파일에 유지"
+    },
+    {
+      "step": 2,
+      "name": "calculation-drafts",
+      "status": "completed",
+      "summary": "근거·단위·면 수·공제를 검수한 입력으로 기존 엔진 계산 및 DRAFT 저장; 브라우저 11.34m2 확인"
+    },
+    {
+      "step": 3,
+      "name": "failure-evaluation",
+      "status": "completed",
+      "summary": "E-01~E-06 합성/대체 모델 계약 평가와 단위·공제·범위·확정 보호 회귀 검증"
+    },
+    {
+      "step": 4,
+      "name": "vision-and-field-validation",
+      "status": "blocked",
+      "blocked_reason": "실제 모델의 합성 crop 판독까지 통과. 승인된 정답 산출표와 실무자 검수·작업시간 비교, 실제 도면 외부 전송 가능 여부 확인 필요"
+    }
+  ]
+}

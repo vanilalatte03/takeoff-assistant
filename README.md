@@ -193,3 +193,8 @@ GitHub Actions의 [CI workflow](.github/workflows/ci.yml)는 `main` 대상 PR과
 - API: `apps/api/app` · 화면: `apps/web/src` · API 테스트: `apps/api/tests`
 
 기여자용 Codex 작업 지침은 [AGENTS.md](AGENTS.md)에 있습니다. 앱 실행에는 Codex나 저장소 hook 활성화가 필요하지 않습니다.
+
+
+## 선택적 산출 탐색 보조
+
+로컬 검색과 사용자 검수 계산은 키 없이 사용할 수 있습니다. AI 검색·선택 영역 판독은 외부 환경설정으로 별도 활성화합니다. [사용 안내](docs/AI_ASSIST_HANDOFF.md), [실행 명령](docs/COMMANDS.md), [진행 현황과 미검증 범위](docs/AI_ASSIST_AUDIT.md)를 참조하세요. 실무 정답 승인과 작업시간 비교는 미완료입니다.

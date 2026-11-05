@@ -59,3 +59,38 @@ Python의 UTF-8 모드를 켜 한글이 포함된 테스트 파일과 하위 프
 ```
 
 CI는 서버 배포나 브라우저 E2E를 수행하지 않습니다. `Windows checks`를 필수 머지 조건으로 지정하는 repository ruleset 설정은 별도 작업입니다.
+
+## 선택적 AI 탐색 설정
+
+외부 `.env`를 복사하지 않고 서버를 실행하려면 저장소 루트에서 아래 명령을 사용한다. `<외부-env-경로>`는 실제 파일 경로로 바꾼다. 기존 프로세스 환경변수가 `.env`보다 우선한다.
+
+```powershell
+.\apps\api\.venv311\Scripts\python.exe scripts/run_api.py --env-file "<외부-env-경로>" --vision-use-search-model
+```
+
+`--vision-use-search-model`은 현재 프로세스에서만 검색 모델을 Vision에도 사용한다. 이미지 입력을 지원하는 모델에서 사용한다. 별도 `TAKEOFF_AI_VISION_MODEL` 설정이 있으면 그 값을 유지한다. 외부 `.env`는 수정하지 않으며 API 키를 브라우저나 출력에 전달하지 않는다. 기본 바인딩은 127.0.0.1:8000이다.
+
+유료 실제 호출 평가는 일반 테스트와 분리했다. 아래 명령은 합성 PDF/이미지만 사용하고 실제 업무 도면은 읽거나 전송하지 않는다. 개발 의존성 설치가 필요하며 호출 비용이 발생한다.
+
+```powershell
+.\apps\api\.venv311\Scripts\python.exe scripts/evaluate_ai_live.py --env-file "<외부-env-경로>" --report docs/AI_ASSIST_LIVE_RESULT.json
+```
+
+Vision 모델 설정이 없으면 이 평가 프로세스에서만 검색 모델을 사용한다. 평가 결과의 모델명·호출별 사용량·소요시간만 저장하며 키나 `.env` 내용은 저장하지 않는다.
+
+API 서버 환경에 `TAKEOFF_AI_API_KEY`와 `TAKEOFF_AI_MODEL`을 설정한 뒤 재시작한다. 모델명은 function calling을 지원하는 계정 내 사용 가능 모델로 지정한다. 키를 브라우저·Git·문서에 저장하지 않는다. 설정하지 않으면 산출 탐색 보조 화면에서 로컬 규칙 검색과 기존 수동 흐름을 사용할 수 있다.
+
+선택 영역 이미지 판독은 별도로 `TAKEOFF_AI_VISION_MODEL`에 이미지 입력과 function calling을 지원하는 사용 가능 모델을 지정해야 한다. 모델명은 고정하지 않는다. 실제 계정 지원 여부·비용·판독 품질은 실모델로 별도 검증한다. 도면 상세의 Dimension region 모드에서 영역을 선택한 뒤 미리보기와 전송 권한을 확인한다. 선택 영역은 페이지 면적 절반 이하, 최대 변 1024px, PNG 4MB 이하로 제한하며 모델 호출은 1회·출력 1500토큰·timeout 30초로 제한한다.
+
+- `GET /assist/config`: AI 사용 가능 여부 (키나 모델 문자열을 반환하지 않음)
+- `POST /drawing-files/{id}/assist/search`: `{ "request": "110호 ACST 천장 면적 찾아줘", "mode": "local" }` (`ai`는 설정 필요)
+- `GET /drawing-files/{id}/assist/runs`: 해당 도면의 최근 실행 20회
+- `POST /drawing-files/{id}/assist/drafts`: run_id, measurement_id와 출처·단위를 검수한 입력을 받아 기존 계산 엔진으로 DRAFT 저장. 모델이 지정하는 상태·수량·계산식을 받지 않음. 입력 계약과 평가 사례는 `docs/AI_ASSIST_EVALUATION.md` 참조.
+- `GET /measurements/{id}/evidence`: 저장된 입력·단위 변환·공제·면 수·현재 원본 링크를 읽기 전용으로 조회. 소유 PDF 이외의 출처를 반환하지 않으며 원본/결과 변경 경고와 이전 기록 누락을 구분.
+- `POST /drawing-files/{id}/pages/{page}/assist/vision-preview`: region을 받아 로컬 crop PNG와 X-Crop-SHA256 헤더 반환. 외부 전송 없음.
+- `POST /drawing-files/{id}/pages/{page}/assist/vision`: 동일 region·preview_sha256·consent=true·failure_reason·note를 받아 선택 영역 판독 후보를 NEEDS_REVIEW로 기록.
+- `GET/POST /drawing-files/{id}/assist/trials`: 도면별 사용자 관찰 비교 기록 조회/저장. 수동/보조 모드, 과제, 전체 작업시간, 수정·개입·오류 수, 검수 결과, 도면 파일 fingerprint를 보존. 보조 방식은 해당 도면·방식의 실행 ID 필수.
+
+연동 계약의 근거: [OpenAI 공식 Function calling 문서](https://developers.openai.com/api/docs/guides/function-calling). 실제 계정의 모델 호출과 비용은 별도 검증이 필요하다. 구현·검증 현황은 `docs/AI_ASSIST_PROGRESS.md`, 원본 발전 PRD는 `docs/AI_ASSIST_PRD.md`를 참조한다.
+
+이미지 입력 계약: [OpenAI 공식 Images and vision 문서](https://developers.openai.com/api/docs/guides/images-vision). 전체 PDF 대신 사용자가 확인한 PNG crop만 input_image로 전송한다.
