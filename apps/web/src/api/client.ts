@@ -94,6 +94,10 @@ export function listProjects() {
   return requestJson<Project[]>("/projects");
 }
 
+export function listProjectDrawingFiles(projectId: number) {
+  return requestJson<DrawingFile[]>(`/projects/${projectId}/drawing-files`);
+}
+
 export function createProject(payload: ProjectCreate) {
   return requestJson<Project>("/projects", {
     method: "POST",

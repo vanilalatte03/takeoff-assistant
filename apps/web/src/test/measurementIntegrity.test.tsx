@@ -1,3 +1,4 @@
+import { MemoryRouter } from "react-router-dom";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -10,6 +11,7 @@ import type { Measurement, RoomFinish } from "../types/api";
 vi.mock("../api/client", async (importOriginal) => ({
   ...await importOriginal<typeof import("../api/client")>(),
   listMeasurements: vi.fn(), updateMeasurement: vi.fn(),
+  listProjects: vi.fn(), listProjectDrawingFiles: vi.fn(),
   getDimensionCandidates: vi.fn(), calculateMeasurement: vi.fn(),
   listRoomFinishes: vi.fn(), updateRoomFinish: vi.fn(), rejectRoomFinish: vi.fn(),
   createRoomFinishForDrawingFile: vi.fn(), extractRoomFinishes: vi.fn(),
@@ -25,6 +27,9 @@ const measurement = (patch: Partial<Measurement> = {}): Measurement => ({
 
 beforeEach(() => {
   vi.resetAllMocks();
+  sessionStorage.clear();
+  vi.mocked(api.listProjects).mockResolvedValue([{id:1,name:"Test",created_at:"2026-11-05",description:null}]);
+  vi.mocked(api.listProjectDrawingFiles).mockResolvedValue([{id:1,project_id:1,original_filename:"synthetic.pdf",stored_path:"synthetic.pdf",page_count:1,created_at:"2026-11-05"}]);
   vi.mocked(api.listMeasurements).mockResolvedValue([measurement()]);
   vi.mocked(api.updateMeasurement).mockImplementation(async (_id, patch) => measurement(patch as Partial<Measurement>));
 });
@@ -316,8 +321,8 @@ describe("measurement integrity", () => {
     const room: RoomFinish = { id: 1, project_id: 1, drawing_file_id: 1, drawing_sheet_id: 1, room_no: "103", room_name: "Office", floor_material: null, floor_finish: "VCT", base_material: null, base_finish: null, wall_material: null, wall_finish: null, ceiling_material: null, ceiling_finish: null, height: null, remarks: null, source_sheet_no: "AE601", confidence: 0.7, status: "CONFIRMED" };
     vi.mocked(api.listRoomFinishes).mockResolvedValue([room, { ...room, id: 2, room_no: "104", status: "REJECTED" }]);
     vi.mocked(api.updateRoomFinish).mockResolvedValue({ ...room, status: "DRAFT" });
-    render(<RoomFinishesPage />);
-    fireEvent.change(screen.getByLabelText("Drawing File ID"), { target: { value: "1" } });
+    render(<MemoryRouter initialEntries={["/room-finishes?drawingFileId=1"]}><RoomFinishesPage /></MemoryRouter>);
+    await screen.findByRole("option", {name:/synthetic.pdf/});
     fireEvent.click(screen.getByRole("button", { name: "Load" }));
     const confirmed = await screen.findByDisplayValue("103");
     const rejected = screen.getByDisplayValue("104");
@@ -333,8 +338,8 @@ describe("measurement integrity", () => {
     const room = { id: 1, project_id: 1, drawing_sheet_id: 1, room_no: "103", room_name: "Office", floor_finish: "VCT", base_finish: null, wall_finish: null, ceiling_finish: null, height: null, remarks: null, source_sheet_no: "AE601", status: "DRAFT" } as RoomFinish;
     vi.mocked(api.listRoomFinishes).mockResolvedValue([room]);
     vi.mocked(api.updateRoomFinish).mockResolvedValue({ ...room, status: "CONFIRMED" });
-    render(<RoomFinishesPage />);
-    fireEvent.change(screen.getByLabelText("Drawing File ID"), { target: { value: "1" } });
+    render(<MemoryRouter initialEntries={["/room-finishes?drawingFileId=1"]}><RoomFinishesPage /></MemoryRouter>);
+    await screen.findByRole("option", {name:/synthetic.pdf/});
     fireEvent.click(screen.getByRole("button", { name: "Load" }));
     const row = (await screen.findByDisplayValue("103")).closest("tr")!;
     fireEvent.change(within(row).getByRole("combobox"), { target: { value: "CONFIRMED" } });

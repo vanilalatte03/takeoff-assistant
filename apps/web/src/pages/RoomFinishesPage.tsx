@@ -1,3 +1,4 @@
+import { DrawingFilePicker, useDrawingFileSelection } from "../components/DrawingFilePicker";
 import { FormEvent, useMemo, useState } from "react";
 
 import {
@@ -48,7 +49,12 @@ function normalizeDraft(draft: RoomFinishCreate): RoomFinishCreate {
 }
 
 export function RoomFinishesPage() {
-  const [drawingFileId, setDrawingFileId] = useState("");
+  const [drawingFileId, setDrawingFileId] = useDrawingFileSelection();
+  return <><section className="panel toolbar-form"><DrawingFilePicker value={drawingFileId} onChange={setDrawingFileId} /></section>
+    <RoomFinishesPageContent key={drawingFileId} drawingFileId={drawingFileId} /></>;
+}
+
+function RoomFinishesPageContent({ drawingFileId }: { drawingFileId: string }) {
   const [rows, setRows] = useState<RoomFinish[]>([]);
   const [persistedStatuses, setPersistedStatuses] = useState<Record<number, ReviewStatus>>({});
   const [warnings, setWarnings] = useState<string[]>([]);
@@ -225,10 +231,7 @@ export function RoomFinishesPage() {
 
       <section className="panel">
         <form className="toolbar-form compact" onSubmit={handleLoad}>
-          <label>
-            <span>Drawing File ID</span>
-            <input value={drawingFileId} inputMode="numeric" onChange={(event) => setDrawingFileId(event.target.value)} />
-          </label>
+
           <button type="submit" disabled={isLoading}>
             Load
           </button>

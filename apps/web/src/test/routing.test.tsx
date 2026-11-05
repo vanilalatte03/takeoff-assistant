@@ -8,13 +8,16 @@ import * as api from "../api/client";
 vi.mock("../api/client", async (importOriginal) => ({
   ...await importOriginal<typeof import("../api/client")>(),
   listProjects: vi.fn(),
+  listProjectDrawingFiles: vi.fn(),
   searchDrawingSheets: vi.fn(),
   listMeasurements: vi.fn(),
 }));
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(api.listProjects).mockResolvedValue([]);
+  sessionStorage.clear();
+  vi.mocked(api.listProjects).mockResolvedValue([{id:1,name:"First",description:null,created_at:"2026-11-05"},{id:2,name:"Second",description:null,created_at:"2026-11-05"}]);
+  vi.mocked(api.listProjectDrawingFiles).mockImplementation(async id=>[{id:id===1?42:84,project_id:id,original_filename:`synthetic-${id}.pdf`,stored_path:"synthetic.pdf",page_count:3,created_at:"2026-11-05"}]);
   vi.mocked(api.searchDrawingSheets).mockResolvedValue({ drawing_file_id: 42, results: [] });
   vi.mocked(api.listMeasurements).mockResolvedValue([]);
 });
@@ -26,6 +29,7 @@ function HistoryControls() {
     <output aria-label="현재 경로">{location.pathname}{location.search}</output>
     <button onClick={() => navigate(-1)}>뒤로</button>
     <button onClick={() => navigate(1)}>앞으로</button>
+    <button onClick={() => navigate("/measurements?drawingFileId=84")}>다른 도면 주소</button>
   </>;
 }
 
@@ -34,6 +38,21 @@ function openApp(path: string) {
 }
 
 describe("application routing", () => {
+  it("updates the selected PDF and project on a same-page URL change and browser back", async () => {
+    openApp("/measurements?drawingFileId=42");
+    await screen.findByRole("option", {name:/synthetic-1.pdf/});
+    expect((screen.getByLabelText("도면 PDF") as HTMLSelectElement).value).toBe("42");
+    fireEvent.click(screen.getByRole("button", {name:"다른 도면 주소"}));
+    await screen.findByRole("option", {name:/synthetic-2.pdf/});
+    expect((screen.getByLabelText("도면 PDF") as HTMLSelectElement).value).toBe("84");
+    expect((screen.getByLabelText("프로젝트") as HTMLSelectElement).value).toBe("2");
+    fireEvent.click(screen.getByRole("button", {name:"Load"}));
+    await waitFor(()=>expect(api.listMeasurements).toHaveBeenCalledWith(84));
+    fireEvent.click(screen.getByRole("button", {name:"뒤로"}));
+    await screen.findByRole("option", {name:/synthetic-1.pdf/});
+    expect((screen.getByLabelText("도면 PDF") as HTMLSelectElement).value).toBe("42");
+  });
+
   it.each(["/", "/missing-page"])("opens upload from %s", async (path) => {
     openApp(path);
     await waitFor(() => expect(screen.getByLabelText("현재 경로").textContent).toBe("/upload"));
@@ -74,8 +93,7 @@ describe("application routing", () => {
     fireEvent.click(screen.getByRole("link", { name: "목록으로" }));
     expect(await screen.findByRole("heading", { name: "도면 목록/검색", level: 1 })).toBeTruthy();
     expect(screen.getByLabelText("현재 경로").textContent).toBe("/drawings?drawingFileId=42");
-    for (const input of screen.getAllByLabelText("Drawing File ID")) {
-      expect((input as HTMLInputElement).value).toBe("42");
-    }
+    await screen.findByRole("option", {name:/synthetic-1.pdf/});
+    expect((screen.getByLabelText("도면 PDF") as HTMLSelectElement).value).toBe("42");
   });
 });

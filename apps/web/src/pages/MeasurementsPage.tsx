@@ -1,3 +1,4 @@
+import { DrawingFilePicker, useDrawingFileSelection } from "../components/DrawingFilePicker";
 import { FormEvent, useMemo, useState } from "react";
 
 import {
@@ -45,7 +46,12 @@ function triggerDownload(blob: Blob, filename: string) {
 }
 
 export function MeasurementsPage() {
-  const [drawingFileId, setDrawingFileId] = useState("");
+  const [drawingFileId, setDrawingFileId] = useDrawingFileSelection();
+  return <><section className="panel toolbar-form"><DrawingFilePicker value={drawingFileId} onChange={setDrawingFileId} /></section>
+    <MeasurementsPageContent key={drawingFileId} drawingFileId={drawingFileId} /></>;
+}
+
+function MeasurementsPageContent({ drawingFileId }: { drawingFileId: string }) {
   const [rows, setRows] = useState<Measurement[]>([]);
   const [roomStatus, setRoomStatus] = useState<DrawingFileRoomStatus | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -236,10 +242,7 @@ export function MeasurementsPage() {
 
       <section className="panel">
         <form className="toolbar-form compact" onSubmit={handleLoad}>
-          <label>
-            <span>Drawing File ID</span>
-            <input value={drawingFileId} inputMode="numeric" onChange={(event) => setDrawingFileId(event.target.value)} />
-          </label>
+
           <button type="submit" disabled={isLoading}>
             Load
           </button>

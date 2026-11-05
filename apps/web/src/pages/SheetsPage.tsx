@@ -1,3 +1,4 @@
+import { DrawingFilePicker, useDrawingFileSelection } from "../components/DrawingFilePicker";
 import { FormEvent, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
@@ -29,9 +30,13 @@ function parseDrawingFileId(value: string) {
 }
 
 export function SheetsPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const initialDrawingFileId = searchParams.get("drawingFileId") ?? "";
-  const [drawingFileId, setDrawingFileId] = useState(initialDrawingFileId);
+  const [drawingFileId, setDrawingFileId] = useDrawingFileSelection();
+  return <><section className="panel toolbar-form"><DrawingFilePicker value={drawingFileId} onChange={setDrawingFileId} /></section>
+    <SheetsPageContent key={drawingFileId} drawingFileId={drawingFileId} /></>;
+}
+
+function SheetsPageContent({ drawingFileId }: { drawingFileId: string }) {
+  const [, setSearchParams] = useSearchParams();
   const [sheetNo, setSheetNo] = useState("");
   const [keyword, setKeyword] = useState("");
   const [sheetRole, setSheetRole] = useState<DrawingSheetRole | "">("");
@@ -94,10 +99,7 @@ export function SheetsPage() {
           <span className="count-label">{roomCandidates.length} candidates</span>
         </div>
         <form className="toolbar-form compact" onSubmit={handleRoomSearch}>
-          <label>
-            <span>Drawing File ID</span>
-            <input value={drawingFileId} inputMode="numeric" onChange={(event) => setDrawingFileId(event.target.value)} />
-          </label>
+
           <label>
             <span>Room No / Name</span>
             <input value={roomQuery} placeholder="119 or OFFICE" onChange={(event) => setRoomQuery(event.target.value)} />
@@ -162,10 +164,7 @@ export function SheetsPage() {
 
       <section className="panel">
         <form className="toolbar-form" onSubmit={handleSearch}>
-          <label>
-            <span>Drawing File ID</span>
-            <input value={drawingFileId} inputMode="numeric" onChange={(event) => setDrawingFileId(event.target.value)} />
-          </label>
+
           <label>
             <span>Sheet No</span>
             <input value={sheetNo} placeholder="AE101" onChange={(event) => setSheetNo(event.target.value)} />
