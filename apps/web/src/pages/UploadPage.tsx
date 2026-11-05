@@ -90,6 +90,7 @@ export function UploadPage() {
       setPendingStep("upload");
       const uploaded = await uploadDrawingFile(toPositiveInteger(projectId, "Project ID"), file);
       setDrawingFile(uploaded);
+      sessionStorage.setItem("takeoff.drawingFileId", String(uploaded.id));
       setMessage(`Uploaded: ${uploaded.original_filename}`);
     } catch (caught) {
       setError(caught);
@@ -170,10 +171,6 @@ export function UploadPage() {
 
       <section className="panel">
         <form className="form-grid" onSubmit={handleUpload}>
-          <label>
-            <span>Project ID</span>
-            <input value={projectId} inputMode="numeric" onChange={(event) => setProjectId(event.target.value)} />
-          </label>
           <label className="file-input">
             <span>PDF file</span>
             <input

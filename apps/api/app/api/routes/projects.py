@@ -2,11 +2,18 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.models import Project
-from app.schemas import ProjectCreate, ProjectRead
+from app.models import DrawingFile, Project
+from app.schemas import DrawingFileRead, ProjectCreate, ProjectRead
 
 
 router = APIRouter(prefix="/projects", tags=["projects"])
+
+
+@router.get("/{project_id}/drawing-files", response_model=list[DrawingFileRead])
+def list_project_drawing_files(project_id: int, db: Session = Depends(get_db)) -> list[DrawingFile]:
+    if db.get(Project, project_id) is None:
+        raise HTTPException(status_code=404, detail="Project not found.")
+    return db.query(DrawingFile).filter(DrawingFile.project_id == project_id).order_by(DrawingFile.id).all()
 
 
 @router.get("", response_model=list[ProjectRead])
