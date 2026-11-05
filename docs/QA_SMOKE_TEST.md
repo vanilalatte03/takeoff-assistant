@@ -609,3 +609,17 @@ Memo
 - Map candidates to Width, Height, Length, Wall height, or Side count, then save the dimension evidence to the selected Measurement.
 - In Measurement Review, load the drawing file and select that Measurement; calculation inputs should prefill from `coordinates_json.dimension_assist.selected_candidates`.
 - Saving the calculation must not mark the Measurement `CONFIRMED` unless the existing confirm-after-save checkbox is explicitly selected.
+
+## AI 보조 PRD 후속 smoke
+
+1. 산출 탐색 보조에서 이름으로 프로젝트/PDF를 선택하고 실 번호·마감 코드로 검색한다.
+2. 근거 페이지와 원문을 확인하고 산출 행을 선택한다. 치수마다 출처 페이지를 먼저 선택한 뒤 후보 또는 수동값·단위·메모를 입력한다.
+3. 파티션은 면 수를 입력하고 공제를 확인한다. 저장 결과가 DRAFT이며 식·수량·단위·출처가 Excel에 남는지 확인한다.
+4. 사용자가 CONFIRMED로 바꾼 행의 초안 재저장을 시도해 차단을 확인한다.
+5. 텍스트 추출이 부족한 영역은 도면 상세 Dimension region에서 선택한다. 로컬 PNG 미리보기와 권한을 확인한 뒤 선택 영역만 판독한다. 키가 없으면 실제 모델 검증 미실시로 기록한다.
+6. 원본이 바뀌거나 영역이 미리보기와 다르면 재확인을 요구해야 한다. 판독 후보는 미확정이며 숫자·단위·코드를 원본과 대조한다.
+7. 실사용 비교 기록에서 같은 과제명으로 수동/보조 작업의 전체 시간·수정·개입·오류·검수 결과를 저장한다. API 도구 테스트 시간을 실무 작업시간으로 기재하지 않는다.
+8. 초안 저장 후 또는 산출 수정 폼에서 원본 대조 패널을 연다. 4200mm 입력이 실제 저장된 4.2m 변환값으로 표시되는지 확인하고 출처 버튼으로 해당 PDF 페이지를 나란히 본다. 기록 없는 과거 행에는 변환값을 만들어 표시하지 않아야 한다.
+9. 계산 결과를 수동 수정하거나 원본이 바뀐 경우 이전 입력 기록과 현재 결과/원본의 차이를 경고해야 한다. 대조 화면을 열기만 해서는 산출값·검수 상태가 바뀌지 않아야 한다.
+
+2026-11-05 개발자 확인: 합성 PDF와 실제 private PDF 130페이지의 예제 두 건을 로컬에서 재현했다. 실제 모델은 합성 자료의 9항목 평가를 통과했고 원본 대조 패널도 브라우저에서 확인했다. 실무자 정답 승인·현장 시간 비교는 미실시다. 자세한 범위는 `AI_ASSIST_PROGRESS.md`와 `AI_ASSIST_EVALUATION.md`를 참조한다.

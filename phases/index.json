@@ -3,6 +3,11 @@
     {
       "dir": "3-dimension-assist",
       "status": "pending"
+    },
+    {
+      "dir": "5-ai-assist",
+      "status": "blocked",
+      "summary": "기능·실모델 합성 9항목 확인, 실제 정답·실무자 검수 대기"
     }
   ],
   "archived_phases": [

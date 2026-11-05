@@ -1,0 +1,193 @@
+{
+  "scope": "synthetic inputs only; live model and server contracts, not field accuracy",
+  "model": "gpt-6.1-terra",
+  "vision_model": "gpt-6.1-terra",
+  "vision_uses_search_model": true,
+  "cases": [
+    {
+      "case": "E-01",
+      "status": "PASS",
+      "checks": {
+        "quantity": true,
+        "draft": true,
+        "excel": true,
+        "sources": true
+      }
+    },
+    {
+      "case": "E-03",
+      "status": "PASS",
+      "checks": {
+        "missing_input_rejected": true
+      }
+    },
+    {
+      "case": "E-04",
+      "status": "PASS",
+      "checks": {
+        "multiple_sources": true,
+        "warning": true
+      }
+    },
+    {
+      "case": "E-05",
+      "status": "PASS",
+      "checks": {
+        "unknown_unit_rejected": true
+      }
+    },
+    {
+      "case": "E-02",
+      "status": "PASS",
+      "checks": {
+        "quantity": true,
+        "draft": true
+      }
+    },
+    {
+      "case": "E-06",
+      "status": "PASS",
+      "checks": {
+        "protected": true,
+        "quantity_preserved": true,
+        "confirmed": true
+      }
+    },
+    {
+      "case": "V-01",
+      "status": "PASS",
+      "checks": {
+        "evidence": true,
+        "dimensions": true,
+        "unconfirmed_units": true,
+        "no_auto_quantity": true
+      }
+    },
+    {
+      "case": "V-02",
+      "status": "PASS",
+      "checks": {
+        "no_inferred_units": true
+      }
+    },
+    {
+      "case": "V-03",
+      "status": "PASS",
+      "checks": {
+        "not_found": true,
+        "no_candidates": true,
+        "measurements_unchanged": true
+      }
+    }
+  ],
+  "calls": [
+    {
+      "kind": "search",
+      "status": "NEEDS_REVIEW",
+      "elapsed_ms": 4486,
+      "metadata": {
+        "model": "gpt-6.1-terra",
+        "response_id": "resp_056346e03bd4888f016aec7531a0e887d28342a83f16e082b9",
+        "usage": {
+          "input_tokens": 246,
+          "input_tokens_details": {
+            "cache_write_tokens": 0,
+            "cached_tokens": 0
+          },
+          "output_tokens": 109,
+          "output_tokens_details": {
+            "reasoning_tokens": 76
+          },
+          "total_tokens": 355
+        }
+      }
+    },
+    {
+      "kind": "search",
+      "status": "NEEDS_REVIEW",
+      "elapsed_ms": 2479,
+      "metadata": {
+        "model": "gpt-6.1-terra",
+        "response_id": "resp_00bbd2fb90592313016aec7535d64087d290306e4cb94d030d",
+        "usage": {
+          "input_tokens": 248,
+          "input_tokens_details": {
+            "cache_write_tokens": 0,
+            "cached_tokens": 0
+          },
+          "output_tokens": 57,
+          "output_tokens_details": {
+            "reasoning_tokens": 23
+          },
+          "total_tokens": 305
+        }
+      }
+    },
+    {
+      "kind": "search",
+      "status": "NEEDS_REVIEW",
+      "elapsed_ms": 2287,
+      "metadata": {
+        "model": "gpt-6.1-terra",
+        "response_id": "resp_017f2a96148bbb19016aec7538502487d2b635e4b8b4b5ddcb",
+        "usage": {
+          "input_tokens": 245,
+          "input_tokens_details": {
+            "cache_write_tokens": 0,
+            "cached_tokens": 0
+          },
+          "output_tokens": 31,
+          "output_tokens_details": {
+            "reasoning_tokens": 0
+          },
+          "total_tokens": 276
+        }
+      }
+    },
+    {
+      "kind": "vision",
+      "status": "NEEDS_REVIEW",
+      "elapsed_ms": 3013,
+      "metadata": {
+        "model": "gpt-6.1-terra",
+        "response_id": "resp_010bfdd0b4216e22016aec753b188087d2bc27cb632adf75e2",
+        "usage": {
+          "input_tokens": 673,
+          "input_tokens_details": {
+            "cache_write_tokens": 0,
+            "cached_tokens": 0
+          },
+          "output_tokens": 129,
+          "output_tokens_details": {
+            "reasoning_tokens": 36
+          },
+          "total_tokens": 802
+        }
+      }
+    },
+    {
+      "kind": "vision_blank",
+      "status": "NOT_FOUND",
+      "elapsed_ms": 1458,
+      "metadata": {
+        "model": "gpt-6.1-terra",
+        "response_id": "resp_0063e45e3473ef43016aec753dd91487d28c326ea031b5d38c",
+        "usage": {
+          "input_tokens": 673,
+          "input_tokens_details": {
+            "cache_write_tokens": 0,
+            "cached_tokens": 0
+          },
+          "output_tokens": 17,
+          "output_tokens_details": {
+            "reasoning_tokens": 0
+          },
+          "total_tokens": 690
+        }
+      }
+    }
+  ],
+  "status": "PASS",
+  "elapsed_seconds": 15.62,
+  "total_tokens": 2428
+}
