@@ -58,17 +58,20 @@ def generate_measurement_candidates(
     )
 
     created_measurements: list[Measurement] = []
+    # A corrected finish code still represents the original candidate.
+    existing_types = {(key[0], key[1], key[2]) for key in existing_keys}
     for room_finish in room_finishes:
         if room_finish.status == ReviewStatus.REJECTED:
             continue
         for spec in build_measurement_candidate_specs(room_finish):
             key = candidate_key(room_finish.id, spec)
-            if key in existing_keys:
+            if key[:3] in existing_types:
                 continue
             measurement = build_measurement_candidate(room_finish, spec)
             db.add(measurement)
             created_measurements.append(measurement)
             existing_keys.add(key)
+            existing_types.add(key[:3])
 
     db.commit()
     for measurement in created_measurements:

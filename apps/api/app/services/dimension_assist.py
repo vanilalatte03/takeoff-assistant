@@ -22,7 +22,7 @@ DIMENSION_PATTERN = re.compile(
     r"""
     (?P<feet>\d+(?:\.\d+)?)\s*'\s*-?\s*(?P<inches>\d+(?:\.\d+)?)?\s*"?
     |
-    (?P<number>\b\d+(?:\.\d+)?\b)
+    (?P<number>(?<![\w.])\d+(?:\.\d+)?)(?:\s*(?P<metric_unit>mm|m)\b|(?![\w.]))
     """,
     re.VERBOSE,
 )
@@ -270,6 +270,11 @@ def _normalize_dimension(raw_text: str, match: re.Match[str]) -> tuple[Decimal |
         return None, None, "Could not normalize dimension text."
 
     value = Decimal(number_text)
+    metric_unit = match.group('metric_unit')
+    if metric_unit == 'mm':
+        return _round_decimal(value / Decimal('1000')), 'mm', None
+    if metric_unit == 'm':
+        return _round_decimal(value), 'm', None
     if value >= Decimal("100"):
         return _round_decimal(value / Decimal("1000")), "mm", None
     if Decimal("0") < value < Decimal("100"):
