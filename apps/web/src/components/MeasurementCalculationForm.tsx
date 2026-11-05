@@ -11,6 +11,7 @@ import type {
   MeasurementType,
 } from "../types/api";
 import { ErrorMessage } from "./ApiState";
+import { ReviewEvidencePanel } from "./ReviewEvidencePanel";
 import { StatusBadge } from "./StatusBadge";
 
 type DeductionDraft = {
@@ -577,6 +578,8 @@ export function MeasurementCalculationForm({ measurement, onSaved }: Measurement
           <button type="button" onClick={startReview} disabled={isSaving}>재검토 시작</button>
         </div>
       ) : currentMeasurement.status === "REJECTED" ? <p>거절된 행은 읽기 전용입니다.</p> : null}
+
+      <ReviewEvidencePanel measurement={currentMeasurement}/>
 
       <fieldset disabled={isReadOnly || isSaving || isSavingMetadata} className="integrity-fieldset">
       <div className="metadata-editor">

@@ -4,6 +4,7 @@ import { getDimensionCandidates, listMeasurements, updateMeasurement } from "../
 import { measurementUnits, mergeSourceSheets } from "../measurementIntegrity";
 import type { DimensionCandidate, DimensionCandidateSlot, DimensionRegion, Measurement } from "../types/api";
 import { ErrorMessage } from "./ApiState";
+import { VisionPanel } from "./VisionPanel";
 
 type Point = {
   x: number;
@@ -1026,6 +1027,7 @@ export function ManualMeasurementViewer({
 
         {mode === "DIMENSION_REGION" ? (
           <div className="dimension-assist-panel">
+            {dimensionRegion && <VisionPanel key={`${drawingFileId}:${pageIndex}:${JSON.stringify(dimensionRegion)}`} fileId={drawingFileId} pageIndex={pageIndex} region={dimensionRegion} />}
             <div className="section-heading compact-heading">
               <h3>Dimension candidates</h3>
               <span className="count-label">{dimensionCandidates.length}</span>

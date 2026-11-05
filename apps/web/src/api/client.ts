@@ -24,6 +24,61 @@ import type {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
+export interface AssistResult {
+  run_id: number;
+  status: string;
+  mode: string;
+  elapsed_ms: number;
+  warnings: string[];
+  evidence: Array<{ sheet_id: number; sheet_no: string | null; sheet_title: string | null; page_index: number; quote: string; method: string }>;
+  trace: Array<{ tool: string; arguments?: Record<string, unknown>; result_count?: number }>;
+  dimensions: Array<{ candidate_id: string; sheet_id: number; page_index: number; raw_text: string; unit_guess: string | null; suggested_value: string | null; status: string }>;
+  finishes: Array<{ room_finish_id: number; room_no: string | null; ceiling_finish: string | null; wall_finish: string | null; source_sheet_no: string | null; status: string }>;
+  vision_candidates?: Array<{ kind: string; raw_text: string; unit: string }>;
+}
+
+export function assistConfig() { return requestJson<{ ai_available: boolean; vision_available: boolean }>("/assist/config"); }
+export function searchAssist(fileId: number, request: string, mode: "local" | "ai") {
+  return requestJson<AssistResult>(`/drawing-files/${fileId}/assist/search`, { method: "POST", body: JSON.stringify({ request, mode }) });
+}
+
+export function createAssistDraft(fileId: number, payload: Record<string, unknown>) {
+  return requestJson<Measurement>(`/drawing-files/${fileId}/assist/drafts`, {method: "POST", body: JSON.stringify(payload)});
+}
+
+export async function previewVision(fileId: number, pageIndex: number, region: Record<string, number>) {
+  const response = await fetch(buildUrl(`/drawing-files/${fileId}/pages/${pageIndex}/assist/vision-preview`), {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ region }),
+  });
+  if (!response.ok) throw new ApiError(response.status, await parseError(response));
+  return { blob: await response.blob(), hash: response.headers.get("X-Crop-SHA256") ?? "" };
+}
+
+export function readVision(fileId: number, pageIndex: number, payload: Record<string, unknown>) {
+  return requestJson<AssistResult>(`/drawing-files/${fileId}/pages/${pageIndex}/assist/vision`, { method: "POST", body: JSON.stringify(payload) });
+}
+
+export interface EvaluationTrial {
+  trial_id: number; task_key: string; mode: string; elapsed_seconds: number;
+  correction_count: number; manual_interventions: number; error_count: number; review_result: string;
+}
+export function getEvaluationTrials(fileId: number) {
+  return requestJson<EvaluationTrial[]>(`/drawing-files/${fileId}/assist/trials`);
+}
+export function saveEvaluationTrial(fileId: number, payload: Record<string, unknown>) {
+  return requestJson<EvaluationTrial>(`/drawing-files/${fileId}/assist/trials`, {method:"POST",body:JSON.stringify(payload)});
+}
+
+export interface ReviewEvidence {
+  measurement_id:number; room_no:string|null; finish_code:string; formula:string|null; quantity:string|null; unit:string|null; status:string;
+  inputs:Array<{name:string;raw_value:string|null;unit:string|null;normalized_value:string|null;normalized_unit:string;source_sheet_id:number|null;note:string|null;method:string}>;
+  sources:Array<{sheet_id:number;drawing_file_id:number;page_index:number;sheet_no:string|null;sheet_title:string|null;quote:string;method:string;changed_since_saved:boolean}>;
+  side_multiplier:number|null; deductions:Array<{amount:string;unit:string;note:string}>; deductions_reviewed:boolean|null; warnings:string[];
+}
+export function getReviewEvidence(measurementId:number) {
+  return requestJson<ReviewEvidence>(`/measurements/${measurementId}/evidence`);
+}
+
 export class ApiError extends Error {
   readonly status: number;
 
