@@ -896,6 +896,13 @@ td select {
     min-height: 360px;
   }
 }
+.evidence-review { margin: 20px 0; padding: 16px; border: 1px solid #cbd5df; border-radius: 10px; }
+.evidence-review summary { cursor: pointer; font-weight: 700; }
+.evidence-input { padding: 12px; margin-bottom: 12px; background: #f3f5f7; border-radius: 8px; }
+.evidence-input h4 { margin: 0 0 8px; }
+.evidence-review-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 1fr); gap: 20px; }
+.evidence-review-image { display: block; width: 100%; max-height: 560px; object-fit: contain; margin-top: 12px; background: #f3f5f7; }
+@media (max-width: 1000px) { .evidence-review-grid { grid-template-columns: 1fr; } }
 .integrity-fieldset {
   border: 0;
   padding: 0;

@@ -11,7 +11,7 @@ import type { Measurement, RoomFinish } from "../types/api";
 vi.mock("../api/client", async (importOriginal) => ({
   ...await importOriginal<typeof import("../api/client")>(),
   listMeasurements: vi.fn(), updateMeasurement: vi.fn(),
-  listProjects: vi.fn(), listProjectDrawingFiles: vi.fn(),
+  listProjects: vi.fn(), listProjectDrawingFiles: vi.fn(), getReviewEvidence: vi.fn(),
   getDimensionCandidates: vi.fn(), calculateMeasurement: vi.fn(),
   listRoomFinishes: vi.fn(), updateRoomFinish: vi.fn(), rejectRoomFinish: vi.fn(),
   createRoomFinishForDrawingFile: vi.fn(), extractRoomFinishes: vi.fn(),
@@ -30,6 +30,7 @@ beforeEach(() => {
   sessionStorage.clear();
   vi.mocked(api.listProjects).mockResolvedValue([{id:1,name:"Test",created_at:"2026-11-05",description:null}]);
   vi.mocked(api.listProjectDrawingFiles).mockResolvedValue([{id:1,project_id:1,original_filename:"synthetic.pdf",stored_path:"synthetic.pdf",page_count:1,created_at:"2026-11-05"}]);
+  vi.mocked(api.getReviewEvidence).mockResolvedValue({measurement_id:1,room_no:"103",finish_code:"VCT",formula:null,quantity:null,unit:"m2",status:"DRAFT",inputs:[],sources:[],side_multiplier:null,deductions:[],deductions_reviewed:null,warnings:[]});
   vi.mocked(api.listMeasurements).mockResolvedValue([measurement()]);
   vi.mocked(api.updateMeasurement).mockImplementation(async (_id, patch) => measurement(patch as Partial<Measurement>));
 });
