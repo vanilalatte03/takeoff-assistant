@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, object_session
 
 from app.db.session import get_db
-from app.models import CalculationType, DrawingFile, DrawingSheet, Measurement, MeasurementType, ReviewStatus, RoomFinish
+from app.models import AssistRun, CalculationType, DrawingFile, DrawingSheet, Measurement, MeasurementType, ReviewStatus, RoomFinish
 from app.schemas import (
     DrawingFileRoomStatusResponse,
     MeasurementCalculationInput,
@@ -58,7 +58,7 @@ def generate_measurement_candidates(
     )
 
     created_measurements: list[Measurement] = []
-    # A corrected finish code still represents the original candidate.
+    # A user's corrected finish code still represents the original candidate.
     existing_types = {(key[0], key[1], key[2]) for key in existing_keys}
     for room_finish in room_finishes:
         if room_finish.status == ReviewStatus.REJECTED:
@@ -250,6 +250,7 @@ def calculate_measurement(
     evidence["calculation_inputs"]["source_sheets"] = result.source_sheets
     measurement.coordinates_json = evidence
     measurement.status = ReviewStatus.DRAFT
+    _update_assist_review(db, measurement, {"calculation_inputs": True})
     db.commit()
     db.refresh(measurement)
     return measurement
@@ -277,6 +278,7 @@ def update_measurement(
         # Older versions accepted invalid units/quantities. Reopening must remain
         # possible so the user can correct those values on the following edit.
         measurement.status = ReviewStatus.DRAFT
+        _update_assist_review(db, measurement, update_data)
         db.commit()
         db.refresh(measurement)
         return measurement
@@ -324,6 +326,8 @@ def update_measurement(
             continue
         setattr(measurement, field, value)
 
+    _update_assist_review(db, measurement, update_data)
+
     db.commit()
     db.refresh(measurement)
     return measurement
@@ -347,6 +351,7 @@ def reject_measurement(
         )
 
     measurement.status = ReviewStatus.REJECTED
+    _update_assist_review(db, measurement, {"status": True})
     db.commit()
     db.refresh(measurement)
     return measurement
@@ -395,7 +400,15 @@ def merge_measurements(
     if file_id is None or any(row.project_id != target.project_id or _measurement_drawing_file_id(row) != file_id
                               for row in source_measurements):
         raise HTTPException(status_code=400, detail="Measurements must belong to the same assigned drawing file and project.")
+    prior_coordinates = {row.id: deepcopy(row.coordinates_json or {}) for row in [target, *source_measurements]}
     _apply_measurement_merge(target, source_measurements)
+    target_assist = prior_coordinates[target.id].get('assist')
+    if isinstance(target_assist, dict):
+        # Keep the target run linked for later confirmation/rejection/recalculation.
+        # Its original inputs remain a snapshot; the evidence panel flags the changed result.
+        target.coordinates_json = {**target.coordinates_json, 'assist': target_assist}
+    for row in [target, *source_measurements]:
+        _update_assist_review(db, row, {"merge": True}, prior_coordinates[row.id])
 
     db.commit()
     db.refresh(target)
@@ -592,3 +605,16 @@ def _allowed_calculation_types(measurement_type: MeasurementType) -> tuple[Calcu
     if measurement_type == MeasurementType.COUNT:
         return (CalculationType.COUNT, CalculationType.CUSTOM)
     return (CalculationType.CUSTOM,)
+
+
+def _update_assist_review(db, measurement, update_data, coordinates=None):
+    coordinates = measurement.coordinates_json if coordinates is None else coordinates
+    assist = (coordinates or {}).get('assist', {})
+    if isinstance(assist, dict) and isinstance(assist.get('run_id'), int):
+        run = db.get(AssistRun, assist['run_id'])
+        if run and (run.result.get('review') or {}).get('measurement_id') == measurement.id:
+            run.result = {**run.result, 'review': {**run.result.get('review', {}),
+                'status': measurement.status.value, 'formula': measurement.formula,
+                'quantity': str(measurement.quantity) if measurement.quantity is not None else None,
+                'unit': measurement.unit, 'source_sheets': measurement.source_sheets,
+                'user_edited_fields': sorted(update_data)}}
