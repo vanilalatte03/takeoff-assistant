@@ -1,14 +1,16 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { StrictMode } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
 import * as api from "../api/client";
 import { WorkflowContent } from "../pages/WorkflowPage";
+import { UploadPage } from "../pages/UploadPage";
 import type { Measurement } from "../types/api";
 
 vi.mock("../api/client", async original => ({...await original<typeof import("../api/client")>(),
   getWorkflowStatus: vi.fn(), prepareWorkflowStage: vi.fn(), listMeasurements: vi.fn(), searchAssist: vi.fn(),
   downloadMeasurementsExcel: vi.fn(), getReviewEvidence: vi.fn(),
+  listProjects: vi.fn(), createProject: vi.fn(),
 }));
 vi.mock("../components/AssistDraftForm", () => ({AssistDraftForm: ({onSaved}: {onSaved: (r:Measurement)=>void}) => <button onClick={() => onSaved(row)}>합성 저장</button>}));
 const row = {id:7,room_no:"110",category:"CEILING",finish_code:"ACST",measurement_type:"CEILING_AREA",formula:"4.2 * 2.7",quantity:"11.34",unit:"m2",status:"DRAFT"} as Measurement;
@@ -121,4 +123,19 @@ it("ignores the older StrictMode initialization response after the newer saved s
   await waitFor(()=>expect(api.getWorkflowStatus).toHaveBeenCalledTimes(2));
   expect(screen.getByText("산출 후보 생성 · 완료")).toBeTruthy();
   expect(screen.getAllByText(/현재 저장값/).length).toBeGreaterThan(0);
+});
+
+it.each([false, true])("preserves a created project when initial project lists arrive late (StrictMode=%s)", async strict => {
+  const initial=deferred<Awaited<ReturnType<typeof api.listProjects>>>();
+  vi.mocked(api.listProjects).mockReturnValue(initial.promise);
+  vi.mocked(api.createProject).mockResolvedValue({id:9,name:"새 합성 프로젝트",description:null});
+  const upload=<MemoryRouter><UploadPage/></MemoryRouter>;
+  render(strict ? <StrictMode>{upload}</StrictMode> : upload);
+  fireEvent.change(screen.getByLabelText("새 프로젝트 이름"), {target:{value:"새 합성 프로젝트"}});
+  fireEvent.click(screen.getByRole("button", {name:"프로젝트 만들기"}));
+  await screen.findByRole("option", {name:"새 합성 프로젝트"});
+  await act(async () => initial.resolve([]));
+  expect((screen.getByLabelText("프로젝트") as HTMLSelectElement).value).toBe("9");
+  expect(screen.getByRole("option", {name:"새 합성 프로젝트"})).toBeTruthy();
+  expect(screen.queryByRole("alert")).toBeNull();
 });

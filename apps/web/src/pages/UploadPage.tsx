@@ -16,11 +16,16 @@ export function UploadPage() {
   const active = useRef(false);
   const running = useRef(false);
   useEffect(() => {
+    let cancelled = false;
     active.current = true;
     listProjects().then(loaded => {
-      if (active.current) { setProjects(loaded); setProjectId(old => old || String(loaded[0]?.id ?? "")); }
-    }).catch(e => { if (active.current) setError(e); });
-    return () => { active.current = false; };
+      if (!cancelled) {
+        // A project can be created while this initial request is still in flight.
+        setProjects(current => [...new Map([...loaded, ...current].map(p => [p.id, p])).values()]);
+        setProjectId(old => old || String(loaded[0]?.id ?? ""));
+      }
+    }).catch(e => { if (!cancelled) setError(e); });
+    return () => { cancelled = true; active.current = false; };
   }, []);
   async function run(label: string, action: () => Promise<void>) {
     if (running.current) return;
