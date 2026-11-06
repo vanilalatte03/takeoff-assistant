@@ -48,6 +48,31 @@ fixture의 원본·질문·검수 정보 전체 SHA256과 PDF에서 추출한 �
 
 보고서는 사례별 질문·검색 인자·전체 순위·정답·누락·지표, 제외 이유, 음성 진단과 baseline 대비 delta/악화 사례를 포함한다. 고정 artifact를 덮어쓰지 않고 별도 결과 경로로 비교할 수 있다. CI의 Python patch 버전이 다르면 비교기가 이를 감지하므로 같은 runtime에서 양쪽을 다시 실행해야 한다. 회귀 테스트는 CI에서 원본/추출 hash·사례별 결과·지표를 검사하며 개발 PC의 runtime 문자열을 강제하지 않는다.
 
+다른 runtime에서 수정 전후를 다시 측정하려면 **현재 단계의 evaluator를 유지한 채** 아래 명령으로 검증된 이전 commit의 검색 함수만 메모리에서 로드한다. 새 evaluator가 없는 과거 commit으로 checkout할 필요가 없다. 저장소 루트 PowerShell에서 실행하며 결과만 임시 폴더에 쓴다. 고정된 저장소 commit의 신뢰된 코드를 실행하는 절차이므로 임의 외부 소스나 입력으로 대체하지 않는다. 소스 SHA256은 Windows 개행 차이를 제거한 UTF-8/LF 기준이다.
+
+```powershell
+@'
+import hashlib, json, subprocess, sys, tempfile, types
+from pathlib import Path
+sys.path.insert(0, 'scripts')
+import evaluate_retrieval as evaluation
+source = subprocess.check_output([
+    'git', 'show',
+    'ae55dc0f60ea9ad25be3cf97eb3b84a5dde59df3:apps/api/app/services/assist_search.py'
+]).decode('utf-8').replace('\r\n', '\n')
+original = types.ModuleType('trusted_retrieval_baseline')
+exec(compile(source, 'ae55dc0:assist_search.py', 'exec'), original.__dict__)
+evaluation.local_search_arguments = original.local_search_arguments
+evaluation.search_sheets = original.search_sheets
+report = evaluation.evaluate()
+report['search_source_sha256'] = hashlib.sha256(source.encode()).hexdigest()
+output = Path(tempfile.gettempdir()) / 'retrieval-baseline-current-runtime.json'
+output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+print(output)
+'@ | .\apps\api\.venv311\Scripts\python.exe -
+.\apps\api\.venv311\Scripts\python.exe scripts/evaluate_retrieval.py --output "$env:TEMP\retrieval-candidate-current-runtime.json" --baseline "$env:TEMP\retrieval-baseline-current-runtime.json"
+```
+
 ### 선택적 실제 AI 비교
 
 이번 단계에서는 **실제 AI 품질 비교 미실행** (`ai_quality_comparison: not_run`)이다. 대체 함수 테스트는 질문 누출 방지 계약만 확인한다. 이전 단계의 실제 모델 결과를 이번 corpus 점수로 재사용하지 않는다.
