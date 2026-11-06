@@ -8,6 +8,11 @@
       "dir": "5-ai-assist",
       "status": "blocked",
       "summary": "기능·실모델 합성 9항목 확인, 실제 정답·실무자 검수 대기"
+    },
+    {
+      "dir": "6-usability-evaluation",
+      "status": "pending",
+      "summary": "검수 데이터·검색 기준선·사용 흐름·로컬 실행·Vision·실무 비교를 PR 단위로 진행"
     }
   ],
   "archived_phases": [

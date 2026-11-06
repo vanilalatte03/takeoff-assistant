@@ -2,7 +2,9 @@
 
 PDF 건축 도면에서 마감표·치수 후보를 찾고, 사용자가 측정·계산·검수한 결과를 Excel로 내보내는 **단일 사용자용 로컬 웹 MVP**입니다.
 
-텍스트 추출과 규칙 기반 후보 생성을 사용합니다. 자동 치수선 판독이나 AI 모델/API 연동은 구현하지 않았으며, 실무 산출 정확도와 작업 시간 절감 효과는 아직 검증하지 않았습니다.
+텍스트 추출·규칙 기반 검색·수동 측정·계산·Excel 내보내기는 AI API 키 없이 사용할 수 있습니다. 선택적으로 외부 모델을 연결하면 요청 문장에서 검색 조건을 추출하거나, 사용자가 전송을 승인한 선택 영역의 치수·마감 후보를 판독할 수 있습니다. 자동 방 경계·치수선 판독과 수량 자동 확정은 제공하지 않습니다. 실무 산출 정확도와 작업 시간 절감 효과는 아직 검증하지 않았습니다.
+
+[산출 보조 사용 안내](docs/AI_ASSIST_HANDOFF.md)와 [구현·검증 현황](docs/AI_ASSIST_AUDIT.md)에서 사용 가능한 기능과 남은 실무 검증을 확인할 수 있습니다.
 
 ## 시연
 
@@ -65,7 +67,7 @@ npm.cmd --prefix apps/web run dev -- --host 127.0.0.1 --port 5173 --strictPort
 - API 상태: <http://127.0.0.1:8000/health>
 - API 문서: <http://127.0.0.1:8000/docs>
 
-Vite 개발 서버가 `/api` 요청을 API로 전달합니다. 별도 DB 서버, Docker, AI API key는 필요하지 않습니다. 인증 없는 개인용 개발 서버이므로 로컬에서 사용합니다. 이 절차는 운영 배포 안내가 아닙니다.
+Vite 개발 서버가 `/api` 요청을 API로 전달합니다. 로컬 검색·측정·계산에는 별도 DB 서버, Docker, AI API key가 필요하지 않습니다. 선택적 AI 검색·영역 판독 설정은 [실행 명령](docs/COMMANDS.md#선택적-ai-탐색-설정)을 따릅니다. 인증 없는 개인용 개발 서버이므로 로컬에서 사용합니다. 이 절차는 운영 배포 안내가 아닙니다.
 
 `py`가 없다면 Python 설치/launcher를 확인하거나, Python 3.11을 가리키는 `python -m venv apps/api/.venv311`로 가상환경을 만듭니다. 나머지 명령은 동일합니다.
 
@@ -82,7 +84,7 @@ Vite 개발 서버가 `/api` 요청을 API로 전달합니다. 별도 DB 서버,
 ### 1. PDF를 업로드하고 도면 확인
 
 1. **PDF 업로드** 화면에서 `New project name`을 입력하고 `Create project`로 프로젝트를 만듭니다.
-2. 예시 PDF를 선택하고 `Upload PDF`를 누릅니다. 표시된 **Drawing File ID**를 기억합니다. 다음 화면에서 같은 파일을 불러올 때 사용하는 번호입니다.
+2. 예시 PDF를 선택하고 `Upload PDF`를 누릅니다. 이후 화면에서는 **프로젝트와 PDF 이름**으로 같은 파일을 선택합니다. 표시되는 내부 Drawing File ID를 외울 필요는 없습니다.
 3. `Process pages` → `Detect sheets` → `Classify sheets`를 순서대로 실행합니다.
 4. `Open sheets`로 도면 목록을 열고 `검색`을 누릅니다. 평면도 `A110`, 실내 마감표 `A710`, 가벽·개구부 상세 `A330`을 확인하고 평면도의 `열기`를 누릅니다.
 
@@ -90,7 +92,7 @@ Vite 개발 서버가 `/api` 요청을 API로 전달합니다. 별도 DB 서버,
 
 ### 2. 실별 마감 정보 검토
 
-1. **Room Finish** 화면에서 위 Drawing File ID를 입력하고 `Extract`를 누릅니다.
+1. **Room Finish** 화면에서 프로젝트와 업로드한 PDF를 이름으로 선택하고 `Extract`를 누릅니다. 같은 탭에서는 앞서 선택한 PDF가 유지됩니다.
 2. 101~105의 5개 실과 바닥·걸레받이·벽·천장 마감 코드를 도면과 대조합니다.
 3. 잘못 읽힌 값은 표에서 수정한 뒤 해당 행의 `Save`를 누릅니다. 자동 추출된 후보는 검토가 필요한 상태로 표시됩니다.
 
@@ -98,7 +100,7 @@ Vite 개발 서버가 `/api` 요청을 API로 전달합니다. 별도 DB 서버,
 
 ### 3. 치수를 입력하고 수량 저장
 
-1. **Measurement** 화면에서 같은 Drawing File ID를 입력하고 `Generate`를 누릅니다. 5개 실 × 4개 공종으로 산출 후보 20개가 생성됩니다.
+1. **Measurement** 화면에서 같은 프로젝트와 PDF 이름을 확인한 뒤 `Generate`를 누릅니다. 5개 실 × 4개 공종으로 산출 후보 20개가 생성됩니다.
 2. 101실의 `FLOOR / LVT-01` 항목을 선택합니다. 바닥 마감 물량을 계산할 항목입니다.
 3. `Calculation Type`을 **사각형 면적**으로 두고 다음 값을 입력합니다.
 
@@ -160,7 +162,7 @@ GitHub Actions의 [CI workflow](.github/workflows/ci.yml)는 `main` 대상 PR과
 
 ## 지원 제한과 남은 과제
 
-- 텍스트가 있는 PDF와 영어 도면명·마감표 중심의 휴리스틱입니다. 스캔 PDF OCR, 한글 방 이름 검색, 모든 마감표 형식을 지원하지 않습니다.
+- 로컬 추출은 텍스트가 있는 PDF와 영어 도면명·마감표 중심의 휴리스틱입니다. 스캔 PDF 전체 OCR, 한글 방 이름 검색, 모든 마감표 형식을 지원하지 않습니다. 선택적 Vision은 승인한 작은 영역의 판독 후보를 제공하며 전체 PDF OCR을 대신하지 않습니다.
 - 자동 방 경계·치수선·문/창문 공제 인식은 없습니다. 숫자 후보의 단위와 방·벽의 대응은 사람이 확인해야 합니다.
 - 회전 PDF의 영역/텍스트 좌표 정합과 벽 방향별 서로 다른 마감의 분리 산출은 미완료입니다.
 - Excel 텍스트의 수식 해석 방지와 프런트엔드 의존성 보안 갱신을 반영했습니다. [Excel 텍스트 저장 계약](docs/F08_EXCEL_TEXT_EXPORT.md), [프런트엔드 의존성 검증](docs/F12_FRONTEND_DEPENDENCIES.md)을 참고하세요. Python 의존성은 Windows/Python 3.11 lock으로 설치합니다.
@@ -187,6 +189,7 @@ GitHub Actions의 [CI workflow](.github/workflows/ci.yml)는 `main` 대상 PR과
 ## 문서와 소스
 
 - [실행·검사 명령](docs/COMMANDS.md)
+- [사용성·평가 후속 개발 계획](phases/6-usability-evaluation/README.md)
 - [MVP 범위](docs/MVP_SPEC.md), [도메인 규칙](docs/DOMAIN_RULES.md)
 - [아키텍처](docs/ARCHITECTURE.md), [설계 결정](docs/ADR.md)
 - [인수 기준](docs/ACCEPTANCE_CHECKLIST.md), [수동 검증](docs/QA_SMOKE_TEST.md)

@@ -1,0 +1,74 @@
+{
+  "project": "takeoff-assistant",
+  "phase": "6-usability-evaluation",
+  "base_branch": "main",
+  "steps": [
+    {
+      "step": 0,
+      "name": "status-and-plan",
+      "status": "completed",
+      "depends_on": [],
+      "summary": "현행 AI 구현과 문서 동기화, PR별 사용성·평가 계약과 실무 게이트 정리"
+    },
+    {
+      "step": 1,
+      "name": "verified-evaluation-cases",
+      "status": "pending",
+      "depends_on": [
+        0
+      ]
+    },
+    {
+      "step": 2,
+      "name": "retrieval-baseline",
+      "status": "pending",
+      "depends_on": [
+        1
+      ]
+    },
+    {
+      "step": 3,
+      "name": "guided-takeoff-workflow",
+      "status": "pending",
+      "depends_on": [
+        0
+      ]
+    },
+    {
+      "step": 4,
+      "name": "windows-user-launch",
+      "status": "pending",
+      "depends_on": [
+        3
+      ]
+    },
+    {
+      "step": 5,
+      "name": "vision-failure-evaluation",
+      "status": "pending",
+      "depends_on": [
+        1
+      ]
+    },
+    {
+      "step": 6,
+      "name": "field-pilot-preparation",
+      "status": "pending",
+      "depends_on": [
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "step": 7,
+      "name": "field-pilot-validation",
+      "status": "blocked",
+      "depends_on": [
+        6
+      ],
+      "blocked_reason": "실무자 참여·승인 정답·실제 도면 이용 및 외부 전송 권한 확인 필요; 준비 단계는 별도 진행"
+    }
+  ]
+}
