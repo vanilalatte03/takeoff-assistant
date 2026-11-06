@@ -13,7 +13,8 @@
     {
       "step": 1,
       "name": "verified-evaluation-cases",
-      "status": "pending",
+      "status": "completed",
+      "summary": "workbook hash에 묶인 별도 검수 기록과 검색/수량 범위별 로더, 제외 이유와 합성 회귀. 실제 20~50건 검수는 step7 외부 게이트 유지",
       "depends_on": [
         0
       ]
