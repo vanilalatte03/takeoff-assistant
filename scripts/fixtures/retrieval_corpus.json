@@ -1,0 +1,34 @@
+{
+  "version": "synthetic-retrieval-v1",
+  "origin": "synthetic",
+  "description": "새로 저술한 공개 가상 도면의 텍스트. 실무 자료나 승인 정답이 아님. 각 text는 임시 PDF 한 페이지로 렌더링 후 다시 추출한다.",
+  "reviewer": "synthetic-contract-review",
+  "reviewed_on": "2026-11-06",
+  "sheets": [
+    {"source_id":"OTHER-S", "sheet_no":"SIM-A", "sheet_title":"INTERIOR FINISH SCHEDULE", "text":"INTERIOR FINISH SCHEDULE\nROOM FLOOR BASE CEILING FINISH\nRoom 210 ACST-1\nRoom 211 ACST-1\nRoom 212 ACST-1"},
+    {"source_id":"TARGET-S", "sheet_no":"SIM-B", "sheet_title":"INTERIOR FINISH SCHEDULE", "text":"INTERIOR FINISH SCHEDULE\nROOM FLOOR BASE CEILING FINISH\nRoom 110 Office ACST-1\nRoom 119 Storage 5A\nRoom 120 Lab VCT-2"},
+    {"source_id":"OTHER-C", "sheet_no":"SIM-C", "sheet_title":"REFLECTED CEILING PLAN", "text":"REFLECTED CEILING PLAN\nRoom 210 ACST-1\nRoom 211 ACST-1\nRoom 212 ACST-1"},
+    {"source_id":"TARGET-C", "sheet_no":"SIM-D", "sheet_title":"REFLECTED CEILING PLAN", "text":"REFLECTED CEILING PLAN\nRoom 110 Office ACST-1\n4200mm x 2700mm"},
+    {"source_id":"FLOOR", "sheet_no":"SIM-E", "sheet_title":"FLOOR PLAN", "text":"FLOOR PLAN\nRoom 120 Lab VCT-2\nRoom 110 Office\nRoom 119 Storage"},
+    {"source_id":"PARTITION", "sheet_no":"SIM-F", "sheet_title":"PARTITION PLAN", "text":"PARTITION PLAN\nRoom 119 Storage 5A\n4200mm x 4600mm"},
+    {"source_id":"PART-DETAIL", "sheet_no":"SIM-G", "sheet_title":"PARTITION DETAILS", "text":"PARTITION DETAILS\n5A partition gypsum detail\n80mm board"},
+    {"source_id":"NOTES", "sheet_no":"SIM-H", "sheet_title":"GENERAL NOTES", "text":"GENERAL NOTES\n110 110 110 110 110 110\nDimension 110mm\nACST-1 general specification"},
+    {"source_id":"CODE", "sheet_no":"SIM-J", "sheet_title":"FINISH DETAILS", "text":"FINISH DETAILS\nZXQ-7 unique finish detail"},
+    {"source_id":"TIE-A", "sheet_no":"SIM-K", "sheet_title":"DETAILS", "text":"DETAILS\nQRS-9 repeated detail"},
+    {"source_id":"TIE-B", "sheet_no":"SIM-L", "sheet_title":"DETAILS", "text":"DETAILS\nQRS-9 repeated detail"}
+  ],
+  "cases": [
+    {"id":"room-ceiling", "question":"110호 ACST-1 천장", "expected":["TARGET-S","TARGET-C"], "locator":"SIM-B Room 110 Office ACST-1 + SIM-D Room 110 / 4200mm x 2700mm"},
+    {"id":"english-room", "question":"ROOM 110 ACST-1 ceiling", "expected":["TARGET-S","TARGET-C"], "locator":"SIM-B and SIM-D Room 110 ACST-1"},
+    {"id":"room-only", "question":"110호", "expected":["TARGET-S","TARGET-C","FLOOR"], "locator":"SIM-B / SIM-D / SIM-E Room 110; repeated notes are not a room plan"},
+    {"id":"partition-multi", "question":"119호 5A 파티션", "expected":["PARTITION","PART-DETAIL","TARGET-S"], "locator":"SIM-F Room 119 5A + SIM-G 5A construction + SIM-B Room 119 finish"},
+    {"id":"numeric-code", "question":"5A partition", "expected":["PARTITION","PART-DETAIL","TARGET-S"], "locator":"SIM-F / SIM-G / SIM-B 5A"},
+    {"id":"finish-only", "question":"ZXQ-7 마감 상세", "expected":["CODE"], "locator":"SIM-J ZXQ-7 unique finish detail"},
+    {"id":"floor-multi", "question":"120호 VCT-2 바닥", "expected":["TARGET-S","FLOOR"], "locator":"SIM-B Room 120 Lab VCT-2 + SIM-E Room 120 Lab VCT-2"},
+    {"id":"tie", "question":"QRS-9 상세", "expected":["TIE-A","TIE-B"], "locator":"SIM-K and SIM-L both contain QRS-9; both are required"},
+    {"id":"not-found-positive", "question":"도면에 없는 별칭 연구공간", "expected":["FLOOR"], "locator":"SIM-E Room 120 Lab. Deliberate paraphrase with no literal token match; known local-search limit"},
+    {"id":"no-relevant", "question":"999호 ZZZ-8", "expected":[], "truth_state":"no_relevant", "locator":"All 11 synthetic pages reviewed: no room 999 or finish ZZZ-8"},
+    {"id":"unknown-truth", "question":"999호", "expected":null, "truth_state":"unknown", "locator":"No relevance adjudication"},
+    {"id":"unreviewed", "question":"110호 ACST-1", "expected":["TARGET-S","TARGET-C"], "review_status":"NEEDS_REVIEW", "locator":"Intentionally unreviewed test record"}
+  ]
+}

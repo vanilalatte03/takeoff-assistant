@@ -23,6 +23,7 @@
 | check-dataset-template | `.\apps\api\.venv311\Scripts\python.exe scripts/validate_example_dataset.py docs/templates/example_dataset_template.xlsx --allow-empty-template` | no | 공개 템플릿 구조 확인 |
 | validate-dataset | `.\apps\api\.venv311\Scripts\python.exe scripts/validate_example_dataset.py data/samples/takeoff_example_dataset_private.xlsx` | no | 비공개 산출 예시 workbook 구조·필수 값 확인 |
 | select-evaluation-cases | `.\apps\api\.venv311\Scripts\python.exe scripts/load_evaluation_cases.py <workbook.xlsx> <reviews.json> --scope retrieval` | no | 검수된 검색 정답 선택·제외 이유 조회. 수량은 `--scope quantity`, [검수 계약](VERIFIED_EVALUATION_CASES.md) 참고 |
+| evaluate-retrieval | `.\apps\api\.venv311\Scripts\python.exe scripts/evaluate_retrieval.py --output "$env:TEMP\retrieval-current.json" --baseline docs/evaluation/retrieval-baseline-v1.json` | no | 고정 공개 합성 PDF의 검색 기준선 비교. 실제 AI는 `--ai-opt-in` 명시 시에만 호출. [지표·검수·한계](RETRIEVAL_BASELINE.md) 참고 |
 
 `.codex/project-profile.json`과 이 표의 test/build 명령을 동기화한다. `checks.py`는 profile의 검사 명령을 우선 사용한다. `doctor.py`는 설정 점검이며 앱의 실무 정확도를 검증하는 명령이 아니다.
 
