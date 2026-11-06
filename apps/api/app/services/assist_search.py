@@ -54,8 +54,9 @@ def model_search_arguments(prompt: str) -> tuple[SearchArguments, dict]:
 def local_search_arguments(prompt: str) -> SearchArguments:
     room = (re.search(r"(?i)(?:room\s*|rm\s*)(\d+)\b", prompt)
             or re.search(r"(\d+)\s*호", prompt)
-            or re.search(r"(?<![A-Za-z0-9])(\d+)(?![A-Za-z0-9])", prompt))
-    code = re.search(r"\b(?:[A-Z][A-Z0-9]{1,10}|\d+[A-Z][A-Z0-9]*)(?:-[A-Z0-9]+)*\b", prompt)
+            or re.search(r"(?<![A-Za-z0-9-])(\d+)(?![A-Za-z0-9-])", prompt))
+    code = next((match for match in re.finditer(r"\b(?:[A-Z][A-Z0-9]{1,10}|\d+[A-Z][A-Z0-9]*)(?:-[A-Z0-9]+)*\b", prompt)
+                 if match.group() not in {"ROOM", "RM"}), None)
     return SearchArguments(room_no=room.group(1) if room else None, finish_code=code.group() if code else None, keyword=None if room or code else prompt.strip())
 
 
@@ -67,8 +68,11 @@ def search_sheets(sheets, args: SearchArguments, intent: str = '') -> list[dict]
         matching_lines = []
         room_lines = []
         score = 0
+        matched_terms = set()
         for line in text.splitlines():
-            hits = sum(bool(re.search(r"(?<![A-Za-z0-9])" + re.escape(term) + r"(?![A-Za-z0-9])", line, re.I)) for term in terms)
+            line_terms = {term for term in terms if re.search(r"(?<![A-Za-z0-9])" + re.escape(term) + r"(?![A-Za-z0-9])", line, re.I)}
+            hits = len(line_terms)
+            matched_terms.update(line_terms)
             if hits:
                 score += hits
                 matching_lines.append(line[:500])
@@ -77,7 +81,7 @@ def search_sheets(sheets, args: SearchArguments, intent: str = '') -> list[dict]
         if matching_lines:
             evidence.append({"sheet_id": sheet.id, "sheet_no": sheet.sheet_no, "sheet_title": sheet.sheet_title,
                 "page_index": sheet.page_index, "role": sheet.role.value, "quote": "\n".join((room_lines or matching_lines)[:4]),
-                "method": "text", "score": score, "status": "NEEDS_REVIEW"})
+                "method": "text", "score": score, "status": "NEEDS_REVIEW", "_term_coverage": len(matched_terms)})
     def priority(item):
         role = item['role']
         text = intent.casefold()
@@ -90,4 +94,10 @@ def search_sheets(sheets, args: SearchArguments, intent: str = '') -> list[dict]
         if re.search(r'\b(?:CROSS SECTIONS?|BUILDING SECTIONS?)\b', item.get('sheet_title') or '', re.I):
             return 6
         return 10
-    return sorted(evidence, key=lambda item: (priority(item), -item['score'], item['page_index']))[:12]
+    # Full request coverage wins over repeated occurrences of only one term.
+    # Retain role priority among equally covered sheets, including code-only
+    # construction details that complement a room-specific plan.
+    ranked = sorted(evidence, key=lambda item: (-item['_term_coverage'], priority(item), -item['score'], item['page_index'], item['sheet_id']))[:12]
+    for item in ranked:
+        item.pop('_term_coverage')
+    return ranked

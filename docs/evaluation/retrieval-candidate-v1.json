@@ -1,0 +1,287 @@
+{
+  "schema_version": 1,
+  "corpus_version": "synthetic-retrieval-v1",
+  "input_sha256": "9e521ac3878e21c148ca2a3c1218bbfc4aa1a04af2acc7fb8e87ff1230f1667e",
+  "extracted_corpus_sha256": "ace556564c0b532f297458275a8106459c20c2748e8e8c6beb2cf402b683929e",
+  "runtime": {
+    "python": "3.11.9",
+    "pymupdf": "1.28.2"
+  },
+  "settings": {
+    "k": 3,
+    "search_limit": 12,
+    "path": "argument builder -> search_sheets",
+    "pdf_font": "helv",
+    "pdf_fontsize": 11
+  },
+  "search_source_sha256": "dbd1ef6f60bead05e3821e7c980468a754358c72cab19c58c6c5128b442f047e",
+  "mode": "local",
+  "ai_quality_comparison": "not_run",
+  "ai_configuration": null,
+  "origin": "synthetic",
+  "metrics": {
+    "scored_cases": 9,
+    "recall_at_3": 0.8888888888888888,
+    "mrr_at_12": 0.8888888888888888,
+    "all_required_at_3_rate": 0.8888888888888888
+  },
+  "cases": [
+    {
+      "id": "room-ceiling",
+      "question": "110호 ACST-1 천장",
+      "arguments": {
+        "room_no": "110",
+        "finish_code": "ACST-1",
+        "keyword": null
+      },
+      "ranked_source_ids": [
+        "TARGET-S",
+        "TARGET-C",
+        "NOTES",
+        "OTHER-S",
+        "OTHER-C",
+        "FLOOR"
+      ],
+      "expected_source_ids": [
+        "TARGET-S",
+        "TARGET-C"
+      ],
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "all_required_at_3": true,
+      "missing_at_3": []
+    },
+    {
+      "id": "english-room",
+      "question": "ROOM 110 ACST-1 ceiling",
+      "arguments": {
+        "room_no": "110",
+        "finish_code": "ACST-1",
+        "keyword": null
+      },
+      "ranked_source_ids": [
+        "TARGET-S",
+        "TARGET-C",
+        "NOTES",
+        "OTHER-S",
+        "OTHER-C",
+        "FLOOR"
+      ],
+      "expected_source_ids": [
+        "TARGET-S",
+        "TARGET-C"
+      ],
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "all_required_at_3": true,
+      "missing_at_3": []
+    },
+    {
+      "id": "room-only",
+      "question": "110호",
+      "arguments": {
+        "room_no": "110",
+        "finish_code": null,
+        "keyword": null
+      },
+      "ranked_source_ids": [
+        "TARGET-S",
+        "TARGET-C",
+        "FLOOR",
+        "NOTES"
+      ],
+      "expected_source_ids": [
+        "TARGET-S",
+        "TARGET-C",
+        "FLOOR"
+      ],
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "all_required_at_3": true,
+      "missing_at_3": []
+    },
+    {
+      "id": "partition-multi",
+      "question": "119호 5A 파티션",
+      "arguments": {
+        "room_no": "119",
+        "finish_code": "5A",
+        "keyword": null
+      },
+      "ranked_source_ids": [
+        "PARTITION",
+        "TARGET-S",
+        "PART-DETAIL",
+        "FLOOR"
+      ],
+      "expected_source_ids": [
+        "PARTITION",
+        "PART-DETAIL",
+        "TARGET-S"
+      ],
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "all_required_at_3": true,
+      "missing_at_3": []
+    },
+    {
+      "id": "numeric-code",
+      "question": "5A partition",
+      "arguments": {
+        "room_no": null,
+        "finish_code": "5A",
+        "keyword": null
+      },
+      "ranked_source_ids": [
+        "PARTITION",
+        "PART-DETAIL",
+        "TARGET-S"
+      ],
+      "expected_source_ids": [
+        "PARTITION",
+        "PART-DETAIL",
+        "TARGET-S"
+      ],
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "all_required_at_3": true,
+      "missing_at_3": []
+    },
+    {
+      "id": "finish-only",
+      "question": "ZXQ-7 마감 상세",
+      "arguments": {
+        "room_no": null,
+        "finish_code": "ZXQ-7",
+        "keyword": null
+      },
+      "ranked_source_ids": [
+        "CODE"
+      ],
+      "expected_source_ids": [
+        "CODE"
+      ],
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "all_required_at_3": true,
+      "missing_at_3": []
+    },
+    {
+      "id": "floor-multi",
+      "question": "120호 VCT-2 바닥",
+      "arguments": {
+        "room_no": "120",
+        "finish_code": "VCT-2",
+        "keyword": null
+      },
+      "ranked_source_ids": [
+        "TARGET-S",
+        "FLOOR"
+      ],
+      "expected_source_ids": [
+        "TARGET-S",
+        "FLOOR"
+      ],
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "all_required_at_3": true,
+      "missing_at_3": []
+    },
+    {
+      "id": "tie",
+      "question": "QRS-9 상세",
+      "arguments": {
+        "room_no": null,
+        "finish_code": "QRS-9",
+        "keyword": null
+      },
+      "ranked_source_ids": [
+        "TIE-A",
+        "TIE-B"
+      ],
+      "expected_source_ids": [
+        "TIE-A",
+        "TIE-B"
+      ],
+      "recall_at_3": 1.0,
+      "reciprocal_rank": 1.0,
+      "all_required_at_3": true,
+      "missing_at_3": []
+    },
+    {
+      "id": "not-found-positive",
+      "question": "도면에 없는 별칭 연구공간",
+      "arguments": {
+        "room_no": null,
+        "finish_code": null,
+        "keyword": "도면에 없는 별칭 연구공간"
+      },
+      "ranked_source_ids": [],
+      "expected_source_ids": [
+        "FLOOR"
+      ],
+      "recall_at_3": 0.0,
+      "reciprocal_rank": 0,
+      "all_required_at_3": false,
+      "missing_at_3": [
+        "FLOOR"
+      ]
+    }
+  ],
+  "excluded": [
+    {
+      "row_id": "no-relevant",
+      "row_number": 11,
+      "scope": "retrieval",
+      "reasons": [
+        "retrieval_truth_missing_or_unreferenced"
+      ]
+    },
+    {
+      "row_id": "unknown-truth",
+      "row_number": 12,
+      "scope": "retrieval",
+      "reasons": [
+        "scope_not_reviewed"
+      ]
+    },
+    {
+      "row_id": "unreviewed",
+      "row_number": 13,
+      "scope": "retrieval",
+      "reasons": [
+        "scope_not_reviewed"
+      ]
+    }
+  ],
+  "negative_diagnostics": [
+    {
+      "id": "no-relevant",
+      "question": "999호 ZZZ-8",
+      "arguments": {
+        "room_no": "999",
+        "finish_code": "ZZZ-8",
+        "keyword": null
+      },
+      "ranked_source_ids": [],
+      "truth_state": "no_relevant",
+      "correct_abstention": true,
+      "reviewer": "synthetic-contract-review",
+      "reviewed_on": "2026-11-06",
+      "locator": "All 11 synthetic pages reviewed: no room 999 or finish ZZZ-8"
+    }
+  ],
+  "comparison": {
+    "delta": {
+      "recall_at_3": 0.14814814814814814,
+      "mrr_at_12": 0.05555555555555547,
+      "all_required_at_3_rate": 0.33333333333333326
+    },
+    "regressions": [],
+    "changed_cases": [
+      "room-ceiling",
+      "english-room",
+      "partition-multi"
+    ]
+  }
+}

@@ -22,7 +22,8 @@
     {
       "step": 2,
       "name": "retrieval-baseline",
-      "status": "pending",
+      "status": "completed",
+      "summary": "고정 합성 PDF/질문과 step1 검색 검수 게이트로 Recall@3·MRR@12·모든 필수 도면 포함·제외 이유 측정. 동일 입력 순위 개선/회귀 비교, 실제 AI/실무 검증은 미실행",
       "depends_on": [
         1
       ]

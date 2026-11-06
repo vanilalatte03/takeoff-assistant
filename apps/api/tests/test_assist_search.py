@@ -17,6 +17,29 @@ def test_local_query_preserves_finish_suffix_and_partition_code():
     assert local_search_arguments('5A 파티션').room_no is None
 
 
+def test_room_markers_and_finish_suffix_are_not_search_terms():
+    assert local_search_arguments('ROOM 317 ABC-8 ceiling').finish_code == 'ABC-8'
+    assert local_search_arguments('RM 317 6B partition').finish_code == '6B'
+    assert local_search_arguments('ABC-8 천장').room_no is None
+    assert local_search_arguments('317').room_no == '317'
+
+
+def test_request_coverage_beats_repeated_partial_hits_within_same_role():
+    sheets = [DrawingSheet(id=1, page_index=0, role=DrawingSheetRole.CEILING_PLAN,
+                           text_content='Room 400 ABC-8\nRoom 401 ABC-8\nRoom 402 ABC-8'),
+              DrawingSheet(id=2, page_index=1, role=DrawingSheetRole.CEILING_PLAN,
+                           text_content='Room 317 ABC-8')]
+    evidence = search_sheets(sheets, local_search_arguments('317호 ABC-8'), '317호 ABC-8')
+    assert [row['sheet_id'] for row in evidence] == [2, 1]
+    assert all(row['status'] == 'NEEDS_REVIEW' and '_term_coverage' not in row for row in evidence)
+
+
+def test_tied_search_order_is_stable_when_input_order_changes():
+    sheets = [DrawingSheet(id=i, page_index=i, role=DrawingSheetRole.DETAIL, text_content='XYZ-3') for i in (1, 2)]
+    args = local_search_arguments('XYZ-3 상세')
+    assert search_sheets(sheets, args) == search_sheets(reversed(sheets), args)
+
+
 def test_architectural_evidence_is_not_crowded_out_by_repeated_numbers():
     sheets = [DrawingSheet(id=i+1,page_index=i,text_content='110 '*50,role=DrawingSheetRole.UNKNOWN,sheet_title='GENERAL NOTES') for i in range(20)]
     for i,role in enumerate([DrawingSheetRole.FINISH_SCHEDULE,DrawingSheetRole.FLOOR_PLAN,DrawingSheetRole.CEILING_PLAN,DrawingSheetRole.PARTITION_DETAIL]):
