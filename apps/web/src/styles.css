@@ -909,3 +909,11 @@ td select {
   margin: 0;
   min-width: 0;
 }
+
+/* Guided workflow keeps existing forms readable on narrow windows. */
+.form-grid > fieldset { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; min-width: 0; }
+.form-grid > fieldset > fieldset { display: grid; gap: 12px; min-width: 0; }
+.form-grid > fieldset > .checkbox-label { grid-column: 1 / -1; }
+@media (max-width: 700px) { .form-grid > fieldset { grid-template-columns: minmax(0, 1fr); } }
+.workflow-sources { display: grid; gap: 12px; margin: 16px 0; }
+.workflow-sources summary, .evidence-review summary { cursor: pointer; padding: 10px 0; }

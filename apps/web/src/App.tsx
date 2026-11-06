@@ -7,19 +7,21 @@ import { RoomFinishesPage } from "./pages/RoomFinishesPage";
 import { SheetsPage } from "./pages/SheetsPage";
 import { UploadPage } from "./pages/UploadPage";
 import { AssistPage } from "./pages/AssistPage";
+import { WorkflowPage } from "./pages/WorkflowPage";
 
 export function App() {
   return (
     <Routes>
       <Route element={<AppShell />}>
-        <Route index element={<Navigate to="/upload" replace />} />
+        <Route index element={<Navigate to="/workflow" replace />} />
+        <Route path="/workflow" element={<WorkflowPage />} />
         <Route path="/upload" element={<UploadPage />} />
         <Route path="/assist" element={<AssistPage />} />
         <Route path="/drawings" element={<SheetsPage />} />
         <Route path="/drawings/:drawingFileId/pages/:pageIndex" element={<DrawingDetailPage />} />
         <Route path="/room-finishes" element={<RoomFinishesPage />} />
         <Route path="/measurements" element={<MeasurementsPage />} />
-        <Route path="*" element={<Navigate to="/upload" replace />} />
+        <Route path="*" element={<Navigate to="/workflow" replace />} />
       </Route>
     </Routes>
   );

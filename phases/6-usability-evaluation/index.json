@@ -31,10 +31,11 @@
     {
       "step": 3,
       "name": "guided-takeoff-workflow",
-      "status": "pending",
+      "status": "completed",
       "depends_on": [
         0
-      ]
+      ],
+      "summary": "한 화면의 보호된 준비·로컬검색·계산초안·원본대조·Excel 연결, 단계 checkpoint 재개/재시도·중복/PDF전환 보호. 합성 과제 Chromium 완주와 workbook 검증, 실제 실무 사용성은 step7 유지"
     },
     {
       "step": 4,

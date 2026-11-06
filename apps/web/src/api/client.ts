@@ -24,6 +24,13 @@ import type {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "/api";
 
+export interface WorkflowStatus {
+  completed: number; stages: string[]; warnings: string[]; ready: boolean;
+  finish_count: number; measurement_count: number;
+}
+export function getWorkflowStatus(id: number) { return requestJson<WorkflowStatus>(`/drawing-files/${id}/workflow`); }
+export function prepareWorkflowStage(id: number) { return requestJson<WorkflowStatus>(`/drawing-files/${id}/workflow/prepare`, { method: "POST" }); }
+
 export interface AssistResult {
   run_id: number;
   status: string;

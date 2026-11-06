@@ -1,10 +1,11 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { createAssistDraft, listMeasurements } from "../api/client";
 import type { AssistResult } from "../api/client";
 import type { Measurement } from "../types/api";
 import { ErrorMessage } from "./ApiState";
 import { ReviewEvidencePanel } from "./ReviewEvidencePanel";
+import { measurementLabels } from "../measurementLabels";
 
 const fields: Record<string, Array<[string, string]>> = {
   FLOOR_AREA: [["width", "가로"], ["height", "세로"]],
@@ -18,7 +19,9 @@ type Entry = { candidate: string; value: string; unit: string; sheet: string; no
 const blank = (): Entry => ({ candidate: "", value: "", unit: "", sheet: "", note: "" });
 type Deduction = { amount: string; unit: string; sheet: string; note: string };
 
-export function AssistDraftForm({ fileId, result }: { fileId: string; result: AssistResult }) {
+export function AssistDraftForm({ fileId, result, onSaved, showEvidence = true }: { fileId: string; result: AssistResult; onSaved?: (row: Measurement) => void; showEvidence?: boolean }) {
+  const active = useRef(false);
+  const saving = useRef(false);
   const [rows, setRows] = useState<Measurement[]>([]);
   const [selected, setSelected] = useState("");
   const [code, setCode] = useState("");
@@ -36,13 +39,15 @@ export function AssistDraftForm({ fileId, result }: { fileId: string; result: As
     listMeasurements(Number(fileId)).then(r => { if (active) setRows(r); }).catch(e => { if(active) setError(e); });
     return () => { active = false; };
   }, [fileId]);
+  useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   function setInput(name: string, change: Partial<Entry>) {
     setInputs(old => ({ ...old, [name]: { ...blank(), ...old[name], ...change } }));
     setReviewed(false); setSaved(null);
   }
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (!row) return;
+    if (!row || saving.current) return;
+    saving.current = true;
     setBusy(true); setError(null); setSaved(null);
     try {
       const evidence = Object.fromEntries((fields[row.measurement_type] ?? []).map(([name]) => {
@@ -53,21 +58,21 @@ export function AssistDraftForm({ fileId, result }: { fileId: string; result: As
       const draft = await createAssistDraft(Number(fileId), { run_id: result.run_id, measurement_id: row.id,
         finish_code: code, inputs: evidence, side_multiplier: row.measurement_type === "PARTITION_AREA" ? Number(sides) : null,
         deductions_reviewed: reviewed, deductions: deductions.map(d => ({amount:d.amount,unit:d.unit,sheet_id:Number(d.sheet),note:d.note})) });
-      setSaved(draft);
-    } catch(e) { setError(e); }
-    finally { setBusy(false); }
+      if (active.current) { setSaved(draft); onSaved?.(draft); }
+    } catch(e) { if (active.current) setError(e); }
+    finally { saving.current = false; if (active.current) setBusy(false); }
   }
   function sourceOptions() { return <><option value="">출처를 선택하세요</option>{result.evidence.map(e => <option key={e.sheet_id} value={e.sheet_id}>{e.sheet_no ?? "번호 미확인"} · PDF {e.page_index + 1}쪽</option>)}</>; }
   return <section className="panel">
     <h2>근거 확인 후 계산 초안</h2>
     <p>숫자 후보는 실 번호나 다른 치수일 수 있습니다. 원본 페이지에서 해당 실에 적용되는 치수·단위·공제를 확인하세요.</p>
     {!rows.length && <p><Link to={`/measurements?drawingFileId=${fileId}`}>산출 목록에서 후보를 먼저 생성하세요.</Link></p>}
-    <form onSubmit={submit} className="form-grid">
+    <form onSubmit={submit} className="form-grid"><fieldset disabled={busy}>
       <label><span>산출 행</span><select value={selected} onChange={e => {
         setSelected(e.target.value); setCode(rows.find(r => String(r.id) === e.target.value)?.finish_code ?? "");
         setInputs({}); setSides(""); setDeductions([]); setReviewed(false); setSaved(null);
       }}><option value="">검토할 산출 행을 선택하세요</option>
-        {rows.filter(r => !room || r.room_no === room).map(r => <option key={r.id} value={r.id} disabled={r.status === "CONFIRMED" || r.status === "REJECTED"}>{r.room_no} · {r.measurement_type} · {r.finish_code} · {r.status}</option>)}
+        {rows.filter(r => !room || r.room_no === room).map(r => <option key={r.id} value={r.id} disabled={r.status === "CONFIRMED" || r.status === "REJECTED"}>{r.room_no} · {measurementLabels[r.measurement_type]} · {r.finish_code} · {r.status}</option>)}
       </select></label>
       {row && <>
         <label><span>확인한 마감 코드</span><input required maxLength={128} value={code} onChange={e => {setCode(e.target.value);setReviewed(false);}} /></label>
@@ -96,9 +101,9 @@ export function AssistDraftForm({ fileId, result }: { fileId: string; result: As
         <label className="checkbox-label"><input type="checkbox" checked={reviewed} onChange={e=>setReviewed(e.target.checked)} /><span>치수·단위·출처·마감 코드·면 수·공제 여부를 원본과 대조했습니다</span></label>
         <button disabled={busy || !reviewed}>{busy ? "계산 중…" : "계산하고 미확정 초안 저장"}</button>
       </>}
-    </form>
+    </fieldset></form>
     <ErrorMessage error={error}/>
-    {saved && <p role="status">{saved.formula} = {saved.quantity} {saved.unit} · DRAFT (미확정). <Link to={`/measurements?drawingFileId=${fileId}`}>산출 목록에서 수정·최종 검수</Link></p>}
-    {saved&&<ReviewEvidencePanel measurement={saved}/>}
+    {saved && <p role="status">{saved.formula} = {saved.quantity} {saved.unit} · DRAFT (미확정). {onSaved ? <a href="#workflow-review">아래 원본 검토·Excel로 이동</a> : <Link to={`/measurements?drawingFileId=${fileId}`}>산출 목록에서 수정·최종 검수</Link>}</p>}
+    {saved&&showEvidence&&<ReviewEvidencePanel measurement={saved}/>}
   </section>;
 }

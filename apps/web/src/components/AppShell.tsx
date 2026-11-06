@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from "react-router-dom";
 
 const navItems = [
+  { to: "/workflow", label: "작업 시작·이어서 하기" },
   { to: "/assist", label: "산출 탐색 보조" },
   { to: "/upload", label: "PDF 업로드" },
   { to: "/drawings", label: "도면 목록/검색" },

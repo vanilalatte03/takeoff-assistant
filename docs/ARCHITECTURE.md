@@ -97,6 +97,8 @@ PDF upload
 
 ## 산출 탐색 보조
 
+기본 `/workflow` 화면은 업로드부터 Excel까지 기존 탐색·계산·원본대조 컴포넌트를 이어준다. `drawing_preparations`는 create_all로 추가하는 준비 checkpoint 테이블이다. 다음 단계만 실행하는 API가 완료 단계를 건너뛰고, 기존 시트의 사용자 메타데이터를 재처리하지 않으며, 마감/산출 후보는 기존의 추가 전용 중복 방지 로직으로 생성한다. 단일 로컬 API 프로세스의 겹친 준비 요청은 잠금/409로 막는다. [재시도·기존 데이터·UI 계약](GUIDED_WORKFLOW.md)을 따른다.
+
 `services/assist_search.py`는 선택한 PDF의 원문을 검색하는 읽기 전용 도구다. 로컬 모드는 규칙으로 검색어를 만들고, AI 모드는 OpenAI Responses API의 단일 `search_sheets` function call로 검색어를 만든다. 모델이 파일·프로젝트 ID나 저장 상태를 지정할 수 없다. 모델 호출은 최대 1회, 출력 한도 500토큰, 요청 문장 최대 500자, 네트워크 timeout 25초로 제한한다.
 
 AI API에는 요청 문장만 전송하며 PDF 원문은 보내지 않는다. 근거는 서버가 조회한 시트의 원문·시트 ID·페이지 인덱스로 구성한다. API 오류와 근거 없음은 각각 FAILED/NOT_FOUND로 표시한다. `assist_runs`는 기존 DB 테이블을 변경하지 않고 startup의 create_all로 추가되며 요청·도구·결과·사용량·소요시간을 로컬에 기록한다. API 키는 기록하지 않는다.
