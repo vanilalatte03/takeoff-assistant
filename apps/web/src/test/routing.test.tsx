@@ -53,10 +53,10 @@ describe("application routing", () => {
     expect((screen.getByLabelText("도면 PDF") as HTMLSelectElement).value).toBe("42");
   });
 
-  it.each(["/", "/missing-page"])("opens upload from %s", async (path) => {
+  it.each(["/", "/missing-page"])("opens guided workflow from %s", async (path) => {
     openApp(path);
-    await waitFor(() => expect(screen.getByLabelText("현재 경로").textContent).toBe("/upload"));
-    expect(screen.getByRole("link", { name: "PDF 업로드" }).getAttribute("aria-current")).toBe("page");
+    await waitFor(() => expect(screen.getByLabelText("현재 경로").textContent).toBe("/workflow"));
+    expect(screen.getByRole("link", { name: "작업 시작·이어서 하기" }).getAttribute("aria-current")).toBe("page");
     await waitFor(() => expect(api.listProjects).toHaveBeenCalled());
   });
 

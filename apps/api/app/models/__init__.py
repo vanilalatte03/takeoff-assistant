@@ -1,4 +1,5 @@
 from app.models.drawing import DrawingFile, DrawingSheet
+from app.models.drawing_preparation import DrawingPreparation
 from app.models.assist_run import AssistRun
 from app.models.evaluation_trial import EvaluationTrial
 from app.models.enums import CalculationType, DrawingSheetRole, MeasurementType, ReviewStatus

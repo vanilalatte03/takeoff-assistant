@@ -1,236 +1,67 @@
-import { FormEvent, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-
-import {
-  classifyDrawingSheets,
-  createProject,
-  detectDrawingSheets,
-  listProjects,
-  processDrawingPages,
-  uploadDrawingFile,
-} from "../api/client";
+import { FormEvent, useEffect, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { createProject, listProjects, uploadDrawingFile } from "../api/client";
 import { ErrorMessage } from "../components/ApiState";
 import { PageHeader } from "../components/PageHeader";
-import type { DrawingFile, Project } from "../types/api";
-
-type UploadStep = "upload" | "process" | "detect" | "classify";
-
-const stepLabels: Record<UploadStep, string> = {
-  upload: "Upload",
-  process: "Process pages",
-  detect: "Detect sheets",
-  classify: "Classify sheets",
-};
-
-function toPositiveInteger(value: string, label: string) {
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new Error(`${label} must be a positive integer.`);
-  }
-  return parsed;
-}
+import type { Project } from "../types/api";
 
 export function UploadPage() {
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState("");
-  const [newProjectName, setNewProjectName] = useState("");
-  const [newProjectDescription, setNewProjectDescription] = useState("");
+  const [name, setName] = useState("");
   const [file, setFile] = useState<File | null>(null);
-  const [drawingFile, setDrawingFile] = useState<DrawingFile | null>(null);
-  const [pendingStep, setPendingStep] = useState<UploadStep | "project" | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [busy, setBusy] = useState("");
   const [error, setError] = useState<unknown>(null);
-
+  const active = useRef(false);
+  const running = useRef(false);
   useEffect(() => {
-    listProjects()
-      .then((loaded) => {
-        setProjects(loaded);
-        setProjectId((current) => current || (loaded[0] ? String(loaded[0].id) : ""));
-      })
-      .catch(setError);
+    active.current = true;
+    listProjects().then(loaded => {
+      if (active.current) { setProjects(loaded); setProjectId(old => old || String(loaded[0]?.id ?? "")); }
+    }).catch(e => { if (active.current) setError(e); });
+    return () => { active.current = false; };
   }, []);
-
-  async function handleCreateProject(event: FormEvent<HTMLFormElement>) {
+  async function run(label: string, action: () => Promise<void>) {
+    if (running.current) return;
+    running.current = true; setBusy(label); setError(null);
+    try { await action(); } catch(e) { if (active.current) setError(e); }
+    finally { running.current = false; if (active.current) setBusy(""); }
+  }
+  async function create(event: FormEvent) {
     event.preventDefault();
-    setError(null);
-    setMessage(null);
-
-    if (!newProjectName.trim()) {
-      setError(new Error("Project name is required."));
-      return;
-    }
-
-    setPendingStep("project");
-    try {
-      const created = await createProject({
-        name: newProjectName.trim(),
-        description: newProjectDescription.trim() || null,
-      });
-      setProjects((current) => [...current, created]);
-      setProjectId(String(created.id));
-      setNewProjectName("");
-      setNewProjectDescription("");
-      setMessage(`Project created: ${created.name}`);
-    } catch (caught) {
-      setError(caught);
-    } finally {
-      setPendingStep(null);
-    }
+    if (!name.trim()) return;
+    await run("프로젝트 생성", async () => {
+      const created = await createProject({name: name.trim()});
+      if (active.current) { setProjects(old => [...old, created]); setProjectId(String(created.id)); setName(""); }
+    });
   }
-
-  async function handleUpload(event: FormEvent<HTMLFormElement>) {
+  async function upload(event: FormEvent) {
     event.preventDefault();
-    setError(null);
-    setMessage(null);
-
-    try {
-      if (!file) {
-        throw new Error("Choose a PDF file to upload.");
+    if (!file || !projectId) return;
+    await run("PDF 업로드", async () => {
+      const uploaded = await uploadDrawingFile(Number(projectId), file);
+      if (active.current) {
+        sessionStorage.setItem("takeoff.drawingFileId", String(uploaded.id));
+        navigate(`/workflow?drawingFileId=${uploaded.id}`);
       }
-      setPendingStep("upload");
-      const uploaded = await uploadDrawingFile(toPositiveInteger(projectId, "Project ID"), file);
-      setDrawingFile(uploaded);
-      sessionStorage.setItem("takeoff.drawingFileId", String(uploaded.id));
-      setMessage(`Uploaded: ${uploaded.original_filename}`);
-    } catch (caught) {
-      setError(caught);
-    } finally {
-      setPendingStep(null);
-    }
+    });
   }
-
-  async function runStep(step: Exclude<UploadStep, "upload">) {
-    if (!drawingFile) {
-      return;
-    }
-
-    setError(null);
-    setMessage(null);
-    setPendingStep(step);
-    try {
-      if (step === "process") {
-        const result = await processDrawingPages(drawingFile.id);
-        setDrawingFile({ ...drawingFile, page_count: result.page_count });
-        setMessage(`Processed ${result.page_count} pages.`);
-      }
-      if (step === "detect") {
-        const result = await detectDrawingSheets(drawingFile.id);
-        setMessage(`Detected ${result.sheets.length} sheets.`);
-      }
-      if (step === "classify") {
-        const result = await classifyDrawingSheets(drawingFile.id);
-        setMessage(`Classified ${result.sheets.length} sheets.`);
-      }
-    } catch (caught) {
-      setError(caught);
-    } finally {
-      setPendingStep(null);
-    }
-  }
-
-  return (
-    <>
-      <PageHeader
-        title="PDF Upload"
-        description="Select or create a project, upload a drawing PDF, then process and classify sheets for takeoff."
-      />
-
-      <section className="panel">
-        <div className="section-heading">
-          <h2>Project</h2>
-          <span className="count-label">{projects.length} projects</span>
-        </div>
-        <form className="project-create-grid" onSubmit={handleCreateProject}>
-          <label>
-            <span>Project</span>
-            <select value={projectId} onChange={(event) => setProjectId(event.target.value)} disabled={!projects.length}>
-              {projects.length ? (
-                projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name} (#{project.id})
-                  </option>
-                ))
-              ) : (
-                <option value="">No projects</option>
-              )}
-            </select>
-          </label>
-          <label>
-            <span>New project name</span>
-            <input value={newProjectName} onChange={(event) => setNewProjectName(event.target.value)} />
-          </label>
-          <label>
-            <span>Description</span>
-            <input value={newProjectDescription} onChange={(event) => setNewProjectDescription(event.target.value)} />
-          </label>
-          <button type="submit" className="button-secondary" disabled={pendingStep !== null}>
-            {pendingStep === "project" ? "Creating..." : "Create project"}
-          </button>
-        </form>
-      </section>
-
-      <section className="panel">
-        <form className="form-grid" onSubmit={handleUpload}>
-          <label className="file-input">
-            <span>PDF file</span>
-            <input
-              type="file"
-              accept="application/pdf,.pdf"
-              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-            />
-          </label>
-          <div className="form-actions">
-            <button type="submit" disabled={pendingStep !== null || !projectId}>
-              {pendingStep === "upload" ? "Uploading..." : "Upload PDF"}
-            </button>
-          </div>
-        </form>
-
-        <ErrorMessage error={error} />
-        {message ? <div className="message message-success">{message}</div> : null}
-      </section>
-
-      {drawingFile ? (
-        <section className="panel">
-          <div className="section-heading">
-            <h2>Uploaded drawing</h2>
-            <Link className="button button-secondary" to={`/drawings?drawingFileId=${drawingFile.id}`}>
-              Open sheets
-            </Link>
-          </div>
-          <dl className="metadata-grid">
-            <div>
-              <dt>Filename</dt>
-              <dd>{drawingFile.original_filename}</dd>
-            </div>
-            <div>
-              <dt>Drawing File ID</dt>
-              <dd>{drawingFile.id}</dd>
-            </div>
-            <div>
-              <dt>Pages</dt>
-              <dd>{drawingFile.page_count}</dd>
-            </div>
-            <div>
-              <dt>Uploaded</dt>
-              <dd>{new Date(drawingFile.created_at).toLocaleString()}</dd>
-            </div>
-          </dl>
-          <div className="button-row">
-            {(["process", "detect", "classify"] as const).map((step) => (
-              <button
-                key={step}
-                type="button"
-                className="button-secondary"
-                disabled={pendingStep !== null}
-                onClick={() => runStep(step)}
-              >
-                {pendingStep === step ? `${stepLabels[step]}...` : stepLabels[step]}
-              </button>
-            ))}
-          </div>
-        </section>
-      ) : null}
-    </>
-  );
+  return <>
+    <PageHeader title="PDF 업로드" description="프로젝트를 고르고 PDF를 올리면 도면 준비부터 Excel까지 이어서 진행합니다." />
+    <p><Link to="/workflow">이미 올린 PDF로 이어서 작업하기</Link></p>
+    <section className="panel"><h2>프로젝트 선택 또는 만들기</h2>
+      <label><span>프로젝트</span><select value={projectId} disabled={!!busy || !projects.length} onChange={e => {setProjectId(e.target.value);setError(null);}}>
+        {!projects.length && <option value="">프로젝트를 먼저 만드세요</option>}
+        {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+      </select></label>
+      <form className="toolbar-form" onSubmit={create}><label><span>새 프로젝트 이름</span><input value={name} disabled={!!busy} onChange={e => setName(e.target.value)} required /></label><button disabled={!!busy || !name.trim()}>프로젝트 만들기</button></form>
+    </section>
+    <section className="panel"><h2>작업할 PDF 올리기</h2>
+      <form className="form-grid" onSubmit={upload}><label><span>PDF 파일</span><input type="file" accept="application/pdf,.pdf" disabled={!!busy} onChange={e => {setFile(e.target.files?.[0] ?? null);setError(null);}} /></label>
+        <button disabled={!!busy || !file || !projectId}>{busy || "PDF 올리고 작업 시작"}</button>
+      </form><ErrorMessage error={error} />
+      {!!error && <p>원인을 확인한 뒤 같은 버튼으로 재시도하세요. 이미 업로드된 PDF는 작업 시작 화면에서 재개할 수 있습니다.</p>}
+    </section>
+  </>;
 }

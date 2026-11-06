@@ -85,6 +85,7 @@ const measurementTypes: MeasurementType[] = [
 interface MeasurementCalculationFormProps {
   measurement: Measurement | null;
   onSaved: (measurement: Measurement) => void;
+  showEvidence?: boolean;
 }
 
 function defaultCalculationType(measurement: Measurement): CalculationType {
@@ -393,7 +394,7 @@ function buildCalculationPayload(draft: CalculationDraft): MeasurementCalculatio
   };
 }
 
-export function MeasurementCalculationForm({ measurement, onSaved }: MeasurementCalculationFormProps) {
+export function MeasurementCalculationForm({ measurement, onSaved, showEvidence = true }: MeasurementCalculationFormProps) {
   const [draft, setDraft] = useState<CalculationDraft | null>(measurement ? createDraft(measurement) : null);
   const [metadataDraft, setMetadataDraft] = useState<MetadataDraft | null>(measurement ? createMetadataDraft(measurement) : null);
   const [confirmAfterSave, setConfirmAfterSave] = useState(false);
@@ -579,7 +580,7 @@ export function MeasurementCalculationForm({ measurement, onSaved }: Measurement
         </div>
       ) : currentMeasurement.status === "REJECTED" ? <p>거절된 행은 읽기 전용입니다.</p> : null}
 
-      <ReviewEvidencePanel measurement={currentMeasurement}/>
+      {showEvidence && <ReviewEvidencePanel measurement={currentMeasurement}/>}
 
       <fieldset disabled={isReadOnly || isSaving || isSavingMetadata} className="integrity-fieldset">
       <div className="metadata-editor">
