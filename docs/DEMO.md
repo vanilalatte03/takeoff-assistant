@@ -43,7 +43,7 @@ print(out.as_posix())
 ## 2. 화면에서 업로드와 추출
 
 1. <http://127.0.0.1:5173/upload>에서 Project를 선택하거나 데모용 프로젝트를 만든다.
-2. 위 PDF를 선택해 `Upload`를 누르고 Drawing File ID를 기록한다.
+2. 위 PDF를 선택해 `Upload PDF`를 누른다. 이후 화면에서는 프로젝트와 PDF 이름으로 선택하며 내부 ID를 기록할 필요가 없다.
 3. `Process pages` → `Detect sheets` → `Classify sheets`를 순서대로 실행한다.
 4. 도면 목록에서 다음 분류를 확인한다.
 
@@ -52,7 +52,7 @@ print(out.as_posix())
 | 0 | A101 | FLOOR_PLAN |
 | 1 | A401 | FINISH_SCHEDULE |
 
-5. Room Finish 화면에서 해당 Drawing File ID를 조회하고 후보를 추출한다. 방 101 / DEMO ROOM의 마감 후보 한 행을 확인한다.
+5. Room Finish 화면에서 같은 프로젝트와 PDF를 이름으로 선택하고 `Extract`로 후보를 추출한다. 방 101 / DEMO ROOM의 마감 후보 한 행을 확인한다.
 6. Measurement 화면에서 산출 후보를 생성한다. 이 합성 마감표는 바닥·천장·걸레받이·벽 후보 네 개를 만든다.
 
 ## 3. 계산과 Excel 확인
