@@ -1,0 +1,33 @@
+{
+  "description": "새로 만든 가상 사례. synthetic-contract-review는 개발 계약 검토이며 실무자 승인이 아니다.",
+  "origin": "synthetic",
+  "sources": [
+    {"source_id": "SCHEDULE", "sheet_no": "SYN-S", "sheet_title": "가상 마감표", "sheet_role": "FINISH_SCHEDULE", "page_index": 0},
+    {"source_id": "PLAN", "sheet_no": "SYN-P", "sheet_title": "가상 천장 평면", "sheet_role": "CEILING_PLAN", "page_index": 1}
+  ],
+  "row_defaults": {
+    "room_no": "S-01", "room_name": "가상실", "category": "CEILING", "finish_code": "SYN-C",
+    "measurement_type": "CEILING_AREA", "source_sheets": "SYN-P", "dimension_source": "가상 치수 4200mm 및 2700mm",
+    "width_m": 4.2, "depth_m": 2.7, "deductions_json": "[]", "formula": "4.2 * 2.7",
+    "quantity": 11.34, "unit": "m2", "status": "CONFIRMED", "evidence_json": "{\"dimensions_mm\":[4200,2700]}",
+    "review_notes": "합성 계약 검증 전용"
+  },
+  "review_defaults": {
+    "status": "REVIEWED", "reviewer": "synthetic-contract-review", "reviewed_on": "2026-11-06", "origin": "synthetic",
+    "unresolved_exceptions": [], "expected_source_ids": ["PLAN"],
+    "evidence": [{"source_id": "PLAN", "locator": "가상실 S-01: 4200mm × 2700mm"}]
+  },
+  "cases": [
+    {"row": {"row_id": "SYN-OK"}},
+    {"row": {"row_id": "SYN-MULTI", "source_sheets": "SYN-S, SYN-P"}, "review": {
+      "expected_source_ids": ["SCHEDULE", "PLAN"],
+      "evidence": [{"source_id": "SCHEDULE", "locator": "가상실 S-01의 SYN-C 천장"}, {"source_id": "PLAN", "locator": "가상실 S-01의 4200mm × 2700mm"}]
+    }},
+    {"row": {"row_id": "SYN-MISSING-QUANTITY", "quantity": null, "status": "NEEDS_REVIEW"}},
+    {"row": {"row_id": "SYN-UNIT-CONFLICT", "unit": "m"}},
+    {"row": {"row_id": "SYN-DEDUCTION-ERROR", "deductions_json": "[{\"area_m2\":12}]", "exception_tags": "DEDUCTION_EXCEEDS_GROSS"},
+      "quantity_review": {"unresolved_exceptions": ["DEDUCTION_EXCEEDS_GROSS"]},
+      "retrieval_review": {"exception_resolution": "검색 도면 정답만 확인. 과다 공제 수량은 미검수"}},
+    {"row": {"row_id": "SYN-UNREVIEWED", "status": "NEEDS_REVIEW"}, "review": {"status": "NEEDS_REVIEW"}}
+  ]
+}
