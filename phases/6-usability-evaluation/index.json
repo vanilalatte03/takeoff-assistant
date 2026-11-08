@@ -41,6 +41,7 @@
       "step": 4,
       "name": "windows-user-launch",
       "status": "pending",
+      "summary": "클릭 실행기·소유 Job·정상/비정상 종료 구현 및 합성 자동 검사 준비. 실제 GUI 시작/브라우저 확인 후 CUA 정책 중단으로 안전 종료·창 닫기 클릭 검증 대기(issue-4); 완료·merge 보류",
       "depends_on": [
         3
       ]
