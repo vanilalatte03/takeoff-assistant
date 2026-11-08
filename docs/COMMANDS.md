@@ -66,6 +66,8 @@ CI는 서버 배포나 브라우저 E2E를 수행하지 않습니다. `Windows c
 
 ## 선택적 AI 탐색 설정
 
+Vision 실패 조건의 기본 오프라인 manifest/PNG 생성은 `scripts/evaluate_vision.py --output <결과.json> --image-dir <이미지폴더>`를 사용한다. 실제 모델은 `--live`를 명시한 경우에만 고정 합성 이미지 5개를 전송한다. 환경변수·정답·지표와 미실행 범위는 [평가 계약](VISION_FAILURE_EVALUATION.md)을 따른다. 기존 `evaluate_ai_live.py`의 과거 실행과는 별도 평가다.
+
 외부 `.env`를 복사하지 않고 서버를 실행하려면 저장소 루트에서 아래 명령을 사용한다. `<외부-env-경로>`는 실제 파일 경로로 바꾼다. 기존 프로세스 환경변수가 `.env`보다 우선한다.
 
 ```powershell

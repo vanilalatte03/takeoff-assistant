@@ -1,0 +1,144 @@
+{
+  "corpus_version": "vision-failures-v1",
+  "scope": "synthetic only; not field accuracy",
+  "runtime": {
+    "pymupdf": "1.28.2",
+    "python": "3.11.9"
+  },
+  "truth_sha256": "a7f70e2f26c1d9f62cfaf5b0aca1307a80b29fe491796d16bc50effee552986c",
+  "configuration": {
+    "endpoint": "https://api.openai.com/v1/responses",
+    "max_output_tokens": 1500,
+    "timeout_seconds": 30,
+    "store": false,
+    "detail": "high",
+    "calls_per_case": 1,
+    "model": null,
+    "reader_sha256": "1dc5ce720dedcb7f85ec0bf3b5a52c74cfd9c13db249920c704cb66988b81b2f"
+  },
+  "configuration_sha256": "3adc9caf2e5787213559740e19ea33e8b700c2fc49ffdaeb16a2cc93ef30bcdc",
+  "mode": "MANIFEST_ONLY",
+  "model_quality": "NOT_RUN",
+  "contract_results": "separate pytest suites; not model quality",
+  "cost": {
+    "amount": null,
+    "reason": "No verified price supplied; tokens only."
+  },
+  "cases": [
+    {
+      "id": "rotated",
+      "description": "90-degree rotated text",
+      "image_sha256": "f25743f3b9ee137ca062547437f20ab0ad0bd3cdb79c38dad1286dae080b966c",
+      "expected": [
+        {
+          "kind": "dimension",
+          "raw_text": "4200 mm",
+          "unit": "mm",
+          "bbox": null
+        }
+      ],
+      "expected_api_status": "NEEDS_REVIEW",
+      "truth": "explicit_synthetic",
+      "human_review_required": true,
+      "score_policy": "exact_tokens",
+      "ambiguity": "none",
+      "status": "NOT_RUN",
+      "metrics": null,
+      "elapsed_ms": null,
+      "metadata": null
+    },
+    {
+      "id": "low_resolution",
+      "description": "24px raster enlarged 10x, then separable 7px box blur",
+      "image_sha256": "8b1d8bad83a98f65f0f2c28e631c2ed9a766fda1818d950cefa42c7c6bda5377",
+      "expected": [
+        {
+          "kind": "dimension",
+          "raw_text": "2700 mm",
+          "unit": "mm",
+          "bbox": null
+        }
+      ],
+      "expected_api_status": "NEEDS_REVIEW",
+      "truth": "explicit_synthetic",
+      "human_review_required": true,
+      "score_policy": "diagnostic_only",
+      "ambiguity": "source token 2700 mm is not reliably legible; abstain or review, no exact accuracy score",
+      "status": "NOT_RUN",
+      "metrics": null,
+      "elapsed_ms": null,
+      "metadata": null
+    },
+    {
+      "id": "mixed",
+      "description": "Room number, finish code and dimension share a crop",
+      "image_sha256": "c1f02e1cff333df117601f0d79fbd8a0744a726a81ea2167fe7f515a806b3b82",
+      "expected": [
+        {
+          "kind": "room_no",
+          "raw_text": "110",
+          "unit": "unknown",
+          "bbox": null
+        },
+        {
+          "kind": "finish_code",
+          "raw_text": "ACST",
+          "unit": "unknown",
+          "bbox": null
+        },
+        {
+          "kind": "dimension",
+          "raw_text": "4200 mm",
+          "unit": "mm",
+          "bbox": null
+        }
+      ],
+      "expected_api_status": "NEEDS_REVIEW",
+      "truth": "explicit_synthetic",
+      "human_review_required": true,
+      "score_policy": "exact_tokens",
+      "ambiguity": "none",
+      "status": "NOT_RUN",
+      "metrics": null,
+      "elapsed_ms": null,
+      "metadata": null
+    },
+    {
+      "id": "unitless",
+      "description": "Numeric token with no printed unit; never infer mm",
+      "image_sha256": "c7ae00c9466fc5a54c777b8d9e3da39b485d04e489f51c0b9f4fc51ac8ca82e6",
+      "expected": [
+        {
+          "kind": "dimension",
+          "raw_text": "4200",
+          "unit": "unknown",
+          "bbox": null
+        }
+      ],
+      "expected_api_status": "NEEDS_REVIEW",
+      "truth": "explicit_synthetic",
+      "human_review_required": true,
+      "score_policy": "exact_tokens",
+      "ambiguity": "none",
+      "status": "NOT_RUN",
+      "metrics": null,
+      "elapsed_ms": null,
+      "metadata": null
+    },
+    {
+      "id": "blank",
+      "description": "White crop; explicit negative, not missing truth",
+      "image_sha256": "81c213fe549e8df8bc2eb3e08836ba5ba6055fa589ef7157ea2062817b07b7e2",
+      "expected": [],
+      "expected_api_status": "NOT_FOUND",
+      "truth": "explicit_synthetic",
+      "human_review_required": true,
+      "score_policy": "exact_tokens",
+      "ambiguity": "none",
+      "status": "NOT_RUN",
+      "metrics": null,
+      "elapsed_ms": null,
+      "metadata": null
+    }
+  ]
+}

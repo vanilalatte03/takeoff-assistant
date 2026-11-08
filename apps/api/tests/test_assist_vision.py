@@ -173,3 +173,51 @@ def test_replaced_pdf_invalidates_preview_and_vision_draft(workflow,monkeypatch)
     assert response.status_code == 400,response.text
     assert '이미지가 변경' in response.json()['detail']
     assert next(r for r in client.get(f'/drawing-files/{file_id}/measurements').json() if r['id']==row['id'])['quantity'] is None
+
+
+@pytest.mark.parametrize('scenario', ['wrong_value', 'inferred_unit', 'mixed_room', 'blank_false_positive', 'no_output', 'malformed', 'provider_failure'])
+def test_bad_vision_candidates_cannot_bypass_review_or_mutate_measurements(workflow, monkeypatch, scenario):
+    """Substitute responses verify storage contracts, never model accuracy."""
+    client = workflow
+    file_id = prepare_scan(client)
+    region = {**REGION, 'y':300} if scenario == 'blank_false_positive' else REGION
+    cropped = client.post(f'/drawing-files/{file_id}/pages/0/assist/vision-preview', json={'region':region})
+    assert cropped.status_code == 200
+    before = client.get(f'/drawing-files/{file_id}/measurements').json()
+    row = next(r for r in before if r['measurement_type'] == 'CEILING_AREA')
+    from app.api.routes import assist
+    def substitute(data):
+        if scenario in {'no_output', 'malformed', 'provider_failure'}:
+            raise ValueError('INVALID_VISION_RESPONSE') if scenario != 'provider_failure' else TimeoutError('private provider body')
+        items = output().model_dump()['items']
+        if scenario == 'wrong_value': items[0]['raw_text'] = '420'
+        if scenario == 'inferred_unit': items[0]['unit'] = 'm'
+        if scenario == 'mixed_room': items[0] = {'kind':'room_no','raw_text':'110','unit':'unknown','bbox':None}
+        if scenario == 'blank_false_positive': items = items[:1]
+        return VisionOutput.model_validate({'items':items}), {'model':'substitute-only'}
+    monkeypatch.setattr(assist, 'read_crop', substitute)
+    request = {**body(cropped.headers['X-Crop-SHA256']), 'region':region}
+    run = client.post(f'/drawing-files/{file_id}/pages/0/assist/vision', json=request).json()
+    assert client.get(f'/drawing-files/{file_id}/measurements').json() == before
+    assert run['status'] == ('FAILED' if scenario in {'no_output','malformed','provider_failure'} else 'NEEDS_REVIEW')
+    assert 'private provider body' not in json.dumps(run)
+    assert all(c['suggested_value'] is None and not c['unit_confirmed'] for c in run['dimensions'])
+    assert run['consent']['external_crop_authorized'] is True
+    assert run['consent']['preview_sha256'] == cropped.headers['X-Crop-SHA256']
+    if run['evidence']:
+        assert run['evidence'][0]['vision_crop']['sha256'] == cropped.headers['X-Crop-SHA256']
+        assert run['evidence'][0]['status'] == 'NEEDS_REVIEW'
+    payload = {'run_id':run['run_id'], 'measurement_id':row['id'], 'deductions_reviewed':True,
+               'inputs': {field:{'candidate_id':run['dimensions'][0]['candidate_id'] if run['dimensions'] else 'forged',
+                                'unit':'mm', 'unit_confirmed':False,
+                                'sheet_id':run['evidence'][0]['sheet_id'] if run['evidence'] else 1,
+                                'note':'Unreviewed test candidate'} for field in ('width','height')}}
+    assert client.post(f'/drawing-files/{file_id}/assist/drafts', json=payload).status_code == 422
+    for field in payload['inputs'].values():
+        field['unit_confirmed'] = True
+        field['note'] = ' '
+    assert client.post(f'/drawing-files/{file_id}/assist/drafts', json=payload).status_code == 400
+    payload['status'] = 'CONFIRMED'
+    payload['quantity'] = '99'
+    assert client.post(f'/drawing-files/{file_id}/assist/drafts', json=payload).status_code == 422
+    assert client.get(f'/drawing-files/{file_id}/measurements').json() == before
