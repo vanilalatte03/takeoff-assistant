@@ -1,6 +1,7 @@
 """Windows click launcher. GUI owns a disposable, Job-protected supervisor."""
 import json
 import os
+from pathlib import Path
 import queue
 import subprocess
 import threading
@@ -32,7 +33,22 @@ class Launcher:
         self.ui.text('storage', '\r\n'.join(lines))
 
     def open_docs(self):
-        os.startfile(ROOT / 'docs/WINDOWS_LAUNCH.md')
+        guide = ROOT / 'docs/WINDOWS_LAUNCH.md'
+        try:
+            os.startfile(guide)
+        except OSError:
+            try:
+                # .md file associations are optional on a prepared Windows PC.
+                # An argument vector keeps spaces literal and invokes no shell.
+                subprocess.Popen([str(Path(os.environ.get('SystemRoot', 'C:/Windows')) / 'System32/notepad.exe'),
+                                  str(guide)], creationflags=CREATE_NO_WINDOW)
+            except OSError:
+                self.ui.message('백업·복구 안내',
+                                '도움말을 열 수 없습니다. 탐색기에서 다음 파일을 텍스트 편집기로 여세요:\n'
+                                f'{guide}\n\n'
+                                '브라우저의 저장 완료와 실행기의 안전 종료 완료를 확인한 후, DB와 남은 journal/WAL 파일·'
+                                '원본 PDF·페이지 이미지·Excel 폴더 전체를 새 빈 백업 폴더에 복사하세요. '
+                                '실행 중 DB를 단순 복사하지 마세요. 복구는 새 폴더의 복사본으로 확인하며 기존 자료를 덮어쓰지 마세요.')
 
     def choose_env(self):
         filename = self.ui.choose_file()

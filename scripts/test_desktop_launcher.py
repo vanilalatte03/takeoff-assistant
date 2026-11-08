@@ -82,3 +82,28 @@ def test_cancel_during_start_never_opens_browser(monkeypatch):
     app.events.put((owned, {'kind': 'ready', 'value': {}}))
     app.poll()
     app.open_browser.assert_not_called()
+
+
+def test_help_without_md_association_uses_quoted_argument_vector(monkeypatch):
+    app, ui = launcher(monkeypatch)
+    module = importlib.import_module('desktop_launcher')
+    monkeypatch.setattr(module.os, 'startfile', Mock(side_effect=OSError('no association')))
+    popen = Mock()
+    monkeypatch.setattr(module.subprocess, 'Popen', popen)
+    app.open_docs()
+    command = popen.call_args.args[0]
+    assert command[0].endswith('System32\\notepad.exe')
+    assert command[1] == str(module.ROOT / 'docs/WINDOWS_LAUNCH.md')
+    assert not popen.call_args.kwargs.get('shell')
+    ui.message.assert_not_called()
+
+
+def test_help_without_editor_still_shows_stop_and_backup_instructions(monkeypatch):
+    app, ui = launcher(monkeypatch)
+    module = importlib.import_module('desktop_launcher')
+    monkeypatch.setattr(module.os, 'startfile', Mock(side_effect=OSError('no association')))
+    monkeypatch.setattr(module.subprocess, 'Popen', Mock(side_effect=OSError('no editor')))
+    app.open_docs()
+    text = ui.message.call_args.args[1]
+    assert '안전 종료 완료' in text and '실행 중 DB를 단순 복사하지' in text
+    assert '원본 PDF' in text and 'Excel' in text and '덮어쓰지' in text
