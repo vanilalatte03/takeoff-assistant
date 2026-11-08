@@ -49,7 +49,8 @@
     {
       "step": 5,
       "name": "vision-failure-evaluation",
-      "status": "pending",
+      "status": "completed",
+      "summary": "고정 합성 crop 5종·fingerprint·오프라인 NOT_RUN과 대체응답/실모델 분리, 오탐·누락·값/kind·단위·빈영역 진단과 API 저장불변 회귀. 승인된 실모델 5회/2819토큰 단일 실행, 흐림 기권은 점수 제외. 실제 업무 정확도·사용성은 step7 유지",
       "depends_on": [
         1
       ]

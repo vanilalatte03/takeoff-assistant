@@ -1,0 +1,316 @@
+{
+  "corpus_version": "vision-failures-v1",
+  "scope": "synthetic only; not field accuracy",
+  "runtime": {
+    "pymupdf": "1.28.2",
+    "python": "3.11.9"
+  },
+  "truth_sha256": "a7f70e2f26c1d9f62cfaf5b0aca1307a80b29fe491796d16bc50effee552986c",
+  "configuration": {
+    "endpoint": "https://api.openai.com/v1/responses",
+    "max_output_tokens": 1500,
+    "timeout_seconds": 30,
+    "store": false,
+    "detail": "high",
+    "calls_per_case": 1,
+    "model": "gpt-6.1-terra",
+    "reader_sha256": "1dc5ce720dedcb7f85ec0bf3b5a52c74cfd9c13db249920c704cb66988b81b2f"
+  },
+  "configuration_sha256": "249b68819f89ebe6383158d43f4761687fb8f5c9bf285540c4960c440358d545",
+  "mode": "LIVE",
+  "model_quality": "EXECUTED",
+  "contract_results": "separate pytest suites; not model quality",
+  "cost": {
+    "amount": null,
+    "reason": "No verified price supplied; tokens only."
+  },
+  "cases": [
+    {
+      "id": "rotated",
+      "description": "90-degree rotated text",
+      "image_sha256": "f25743f3b9ee137ca062547437f20ab0ad0bd3cdb79c38dad1286dae080b966c",
+      "expected": [
+        {
+          "kind": "dimension",
+          "raw_text": "4200 mm",
+          "unit": "mm",
+          "bbox": null
+        }
+      ],
+      "expected_api_status": "NEEDS_REVIEW",
+      "truth": "explicit_synthetic",
+      "human_review_required": true,
+      "score_policy": "exact_tokens",
+      "ambiguity": "none",
+      "status": "COMPLETED",
+      "metrics": {
+        "false_positives": 0,
+        "omissions": 0,
+        "value_or_kind_errors": 0,
+        "unit_errors": 0,
+        "blank_false_positives": null
+      },
+      "elapsed_ms": 5014.752,
+      "metadata": {
+        "model": "gpt-6.1-terra",
+        "response_id": "resp_0453d8739fab41a8016af07fe2635087d0ab6001785598b16c",
+        "usage": {
+          "input_tokens": 476,
+          "input_tokens_details": {
+            "cache_write_tokens": 0,
+            "cached_tokens": 0
+          },
+          "output_tokens": 101,
+          "output_tokens_details": {
+            "reasoning_tokens": 40
+          },
+          "total_tokens": 577
+        }
+      },
+      "actual": [
+        {
+          "kind": "dimension",
+          "raw_text": "4200 mm",
+          "unit": "mm",
+          "bbox": {
+            "x": 0.346,
+            "y": 0.479,
+            "width": 0.079,
+            "height": 0.396
+          }
+        }
+      ],
+      "api_result_equivalent": "NEEDS_REVIEW"
+    },
+    {
+      "id": "low_resolution",
+      "description": "24px raster enlarged 10x, then separable 7px box blur",
+      "image_sha256": "8b1d8bad83a98f65f0f2c28e631c2ed9a766fda1818d950cefa42c7c6bda5377",
+      "expected": [
+        {
+          "kind": "dimension",
+          "raw_text": "2700 mm",
+          "unit": "mm",
+          "bbox": null
+        }
+      ],
+      "expected_api_status": "NEEDS_REVIEW",
+      "truth": "explicit_synthetic",
+      "human_review_required": true,
+      "score_policy": "diagnostic_only",
+      "ambiguity": "source token 2700 mm is not reliably legible; abstain or review, no exact accuracy score",
+      "status": "COMPLETED",
+      "metrics": null,
+      "elapsed_ms": 2376.719,
+      "metadata": {
+        "model": "gpt-6.1-terra",
+        "response_id": "resp_013dad16a93747d6016af07fe6e04c87d09d97170bdeda6e82",
+        "usage": {
+          "input_tokens": 476,
+          "input_tokens_details": {
+            "cache_write_tokens": 0,
+            "cached_tokens": 0
+          },
+          "output_tokens": 35,
+          "output_tokens_details": {
+            "reasoning_tokens": 16
+          },
+          "total_tokens": 511
+        }
+      },
+      "actual": [],
+      "diagnostic": {
+        "candidate_count": 0,
+        "abstained": true,
+        "reason": "Ambiguous raster; source truth is not legibility truth."
+      },
+      "api_result_equivalent": "NOT_FOUND"
+    },
+    {
+      "id": "mixed",
+      "description": "Room number, finish code and dimension share a crop",
+      "image_sha256": "c1f02e1cff333df117601f0d79fbd8a0744a726a81ea2167fe7f515a806b3b82",
+      "expected": [
+        {
+          "kind": "room_no",
+          "raw_text": "110",
+          "unit": "unknown",
+          "bbox": null
+        },
+        {
+          "kind": "finish_code",
+          "raw_text": "ACST",
+          "unit": "unknown",
+          "bbox": null
+        },
+        {
+          "kind": "dimension",
+          "raw_text": "4200 mm",
+          "unit": "mm",
+          "bbox": null
+        }
+      ],
+      "expected_api_status": "NEEDS_REVIEW",
+      "truth": "explicit_synthetic",
+      "human_review_required": true,
+      "score_policy": "exact_tokens",
+      "ambiguity": "none",
+      "status": "COMPLETED",
+      "metrics": {
+        "false_positives": 0,
+        "omissions": 0,
+        "value_or_kind_errors": 0,
+        "unit_errors": 0,
+        "blank_false_positives": null
+      },
+      "elapsed_ms": 5931.531,
+      "metadata": {
+        "model": "gpt-6.1-terra",
+        "response_id": "resp_08b00d62ed5d2927016af07fe9ec8487d09afb6fa3091a240c",
+        "usage": {
+          "input_tokens": 476,
+          "input_tokens_details": {
+            "cache_write_tokens": 0,
+            "cached_tokens": 0
+          },
+          "output_tokens": 202,
+          "output_tokens_details": {
+            "reasoning_tokens": 58
+          },
+          "total_tokens": 678
+        }
+      },
+      "actual": [
+        {
+          "kind": "room_no",
+          "raw_text": "110",
+          "unit": "unknown",
+          "bbox": {
+            "x": 0.45,
+            "y": 0.196,
+            "width": 0.158,
+            "height": 0.083
+          }
+        },
+        {
+          "kind": "finish_code",
+          "raw_text": "ACST",
+          "unit": "unknown",
+          "bbox": {
+            "x": 0.125,
+            "y": 0.446,
+            "width": 0.258,
+            "height": 0.083
+          }
+        },
+        {
+          "kind": "dimension",
+          "raw_text": "4200 mm",
+          "unit": "mm",
+          "bbox": {
+            "x": 0.125,
+            "y": 0.696,
+            "width": 0.4,
+            "height": 0.083
+          }
+        }
+      ],
+      "api_result_equivalent": "NEEDS_REVIEW"
+    },
+    {
+      "id": "unitless",
+      "description": "Numeric token with no printed unit; never infer mm",
+      "image_sha256": "c7ae00c9466fc5a54c777b8d9e3da39b485d04e489f51c0b9f4fc51ac8ca82e6",
+      "expected": [
+        {
+          "kind": "dimension",
+          "raw_text": "4200",
+          "unit": "unknown",
+          "bbox": null
+        }
+      ],
+      "expected_api_status": "NEEDS_REVIEW",
+      "truth": "explicit_synthetic",
+      "human_review_required": true,
+      "score_policy": "exact_tokens",
+      "ambiguity": "none",
+      "status": "COMPLETED",
+      "metrics": {
+        "false_positives": 0,
+        "omissions": 0,
+        "value_or_kind_errors": 0,
+        "unit_errors": 0,
+        "blank_false_positives": null
+      },
+      "elapsed_ms": 2317.239,
+      "metadata": {
+        "model": "gpt-6.1-terra",
+        "response_id": "resp_05672db6c2478d4b016af07feea01c87d0bfba30b8843ec2ec",
+        "usage": {
+          "input_tokens": 476,
+          "input_tokens_details": {
+            "cache_write_tokens": 0,
+            "cached_tokens": 0
+          },
+          "output_tokens": 84,
+          "output_tokens_details": {
+            "reasoning_tokens": 24
+          },
+          "total_tokens": 560
+        }
+      },
+      "actual": [
+        {
+          "kind": "dimension",
+          "raw_text": "4200",
+          "unit": "unknown",
+          "bbox": {
+            "x": 0.225,
+            "y": 0.45,
+            "width": 0.217,
+            "height": 0.075
+          }
+        }
+      ],
+      "api_result_equivalent": "NEEDS_REVIEW"
+    },
+    {
+      "id": "blank",
+      "description": "White crop; explicit negative, not missing truth",
+      "image_sha256": "81c213fe549e8df8bc2eb3e08836ba5ba6055fa589ef7157ea2062817b07b7e2",
+      "expected": [],
+      "expected_api_status": "NOT_FOUND",
+      "truth": "explicit_synthetic",
+      "human_review_required": true,
+      "score_policy": "exact_tokens",
+      "ambiguity": "none",
+      "status": "COMPLETED",
+      "metrics": {
+        "false_positives": 0,
+        "omissions": 0,
+        "value_or_kind_errors": 0,
+        "unit_errors": 0,
+        "blank_false_positives": 0
+      },
+      "elapsed_ms": 1425.267,
+      "metadata": {
+        "model": "gpt-6.1-terra",
+        "response_id": "resp_0f40872efcf9ea86016af07ff0f42887d0b7a9b17008cd2d22",
+        "usage": {
+          "input_tokens": 476,
+          "input_tokens_details": {
+            "cache_write_tokens": 0,
+            "cached_tokens": 0
+          },
+          "output_tokens": 17,
+          "output_tokens_details": {
+            "reasoning_tokens": 0
+          },
+          "total_tokens": 493
+        }
+      },
+      "actual": [],
+      "api_result_equivalent": "NOT_FOUND"
+    }
+  ]
+}
