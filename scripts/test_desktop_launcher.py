@@ -107,3 +107,4 @@ def test_help_without_editor_still_shows_stop_and_backup_instructions(monkeypatc
     text = ui.message.call_args.args[1]
     assert '안전 종료 완료' in text and '실행 중 DB를 단순 복사하지' in text
     assert '원본 PDF' in text and 'Excel' in text and '덮어쓰지' in text
+    assert all(scope in text for scope in ('DB', 'journal/WAL', '페이지 이미지'))
