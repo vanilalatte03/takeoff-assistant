@@ -33,6 +33,7 @@ scripts/                Codex template check, guard, doctor, phase runner
 ```
 
 ## 모듈 경계
+- Windows 클릭 실행: `Start Takeoff.cmd` → `scripts/desktop_launcher.py`(Win32 GUI·저장소별 mutex) → `desktop_runtime.py`(kill-on-close Job에 먼저 들어가는 supervisor) → `desktop_api.py`/직접 Vite Node. GUI·브라우저는 Job 밖이며, 프로세스 핸들과 stdin EOF로 소유 서버만 정리합니다. API는 Uvicorn graceful shutdown 후 제한 시간에만 강제 종료합니다. 설정 파일을 복사하거나 PID를 디스크에 저장하지 않습니다. 일상 사용·백업 계약은 `docs/WINDOWS_LAUNCH.md`를 따릅니다.
 - `apps/api/app/api/routes`: HTTP 경계입니다. 요청 형태를 검증하고 DB row를 로드한 뒤 service를 호출하고 schema 또는 file을 반환합니다.
 - `apps/api/app/models`: project, drawing file, drawing sheet, room finish, measurement의 persistence 경계입니다.
 - `apps/api/app/services`: sheet detection/classification, finish schedule extraction, candidate generation, quantity calculation, Excel export를 위한 결정적 domain logic입니다.

@@ -40,7 +40,8 @@
     {
       "step": 4,
       "name": "windows-user-launch",
-      "status": "pending",
+      "status": "completed",
+      "summary": "Win32 클릭 실행·소유 Job·정상/비정상 종료·복구 안내와 합성 회귀. 시작/브라우저·loopback·프로세스 정리/DB 보존 확인, 2026-11-08 사용자 임시 데이터 확인에서 안전 종료 완료·재시작 후 × 닫기 모두 정상 응답(issue-4). 실제 업무 검증은 step7 유지",
       "depends_on": [
         3
       ]

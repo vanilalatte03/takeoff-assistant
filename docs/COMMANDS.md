@@ -29,6 +29,8 @@
 
 ## 준비와 사용
 
+- 준비 후 일상 사용: 탐색기의 `Start Takeoff.cmd` → **시작** → 브라우저 → **안전 종료**. [실제 저장 위치·오류·백업·복구](WINDOWS_LAUNCH.md)를 따른다. 기본 바인딩은 API/웹 모두 `127.0.0.1`이며, 기존 포트 소유자는 종료하지 않는다.
+
 - [README 빠른 시작](../README.md): Python/Node 준비, 의존성 설치, 두 터미널 실행
 - [합성 PDF 데모](DEMO.md): 비공개 도면 없이 후보·계산·Excel 확인
 - [산출 무결성](INTEGRITY_FIXES.md): F01~F07 계약과 기존 DB 처리

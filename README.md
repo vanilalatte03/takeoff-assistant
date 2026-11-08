@@ -51,6 +51,8 @@ npm.cmd --prefix apps/web ci
 
 Python lock은 Windows x64 / Python 3.11용이며 API·개발·스크립트 테스트 의존성과 editable 빌드 backend를 고정합니다. PyMuPDF 1.28.2에서 손상 PDF 정리 오류를 재현해 수정했습니다. 다른 플랫폼/버전의 전체 실행은 검증하지 않았습니다. [설치 재현·보안 검사·PDF 오류 계약](docs/PDF_UPLOAD_REPRODUCIBILITY.md)을 참고하세요.
 
+준비가 끝나면 탐색기에서 **Start Takeoff.cmd**를 더블클릭하고 **시작**을 누릅니다. 작업 화면이 브라우저에서 열립니다. 저장 후 **안전 종료**를 누르고 완료를 확인합니다. [클릭 실행·오류 해결·백업·복구 안내](docs/WINDOWS_LAUNCH.md)를 먼저 확인하세요. 다음 두 터미널 명령은 개발자용 대체 실행입니다.
+
 첫 번째 터미널에서 API를 시작합니다.
 
 ```powershell
