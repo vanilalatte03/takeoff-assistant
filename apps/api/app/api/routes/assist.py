@@ -1,6 +1,6 @@
 from time import perf_counter
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing import Literal
 from sqlalchemy.orm import Session
 from sqlalchemy import update
@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 import hashlib
 from pathlib import Path
 from app.services.provider_errors import provider_error_metadata
+from app.services.pilot_evaluation import PilotObservation, analyze_trials
 
 router = APIRouter(tags=["assist"])
 
@@ -42,6 +43,14 @@ class TrialRequest(BaseModel):
     error_count: int = Field(ge=0, le=10000)
     review_result: Literal['adopted','rejected','needs_review']
     notes: str = Field(min_length=1, max_length=2000)
+    pilot: PilotObservation | None = None
+
+    @model_validator(mode='after')
+    def consistent_preparation_time(self):
+        if self.pilot and self.pilot.preparation == 'included' and self.pilot.preparation_seconds > self.elapsed_seconds:
+            raise ValueError('포함된 준비 시간이 총 소요시간보다 클 수 없습니다.')
+        return self
+
 
 
 @router.post('/drawing-files/{file_id}/assist/trials', status_code=201)
@@ -51,17 +60,20 @@ def record_trial(file_id: int, payload: TrialRequest, db: Session = Depends(get_
         raise HTTPException(404,'Drawing file not found.')
     if not payload.task_key.strip() or not payload.notes.strip():
         raise HTTPException(422,'과제명과 검수 메모를 입력하세요.')
-    if payload.mode != 'manual':
+    if payload.pilot and payload.pilot.sequence[payload.pilot.position - 1] != payload.mode:
+        raise HTTPException(422, '실행 순서와 현재 방식이 일치해야 합니다.')
+    failed_without_run = payload.pilot and payload.pilot.outcome != 'completed' and payload.run_id is None
+    if payload.mode != 'manual' and not failed_without_run:
         run = db.get(AssistRun,payload.run_id) if payload.run_id else None
         if run is None or run.drawing_file_id != file_id or run.mode != payload.mode:
             raise HTTPException(400,'선택한 도면과 방식에 맞는 실행 기록이 필요합니다.')
-    elif payload.run_id is not None:
+    elif payload.mode == 'manual' and payload.run_id is not None:
         raise HTTPException(400,'수동 기준선에는 AI 실행 ID를 연결하지 않습니다.')
     if not Path(drawing_file.stored_path).is_file():
         raise HTTPException(409,'비교 기준 도면 파일을 찾을 수 없습니다.')
     with open(drawing_file.stored_path,'rb') as source:
         drawing_hash = hashlib.file_digest(source,'sha256').hexdigest()
-    trial = EvaluationTrial(drawing_file_id=file_id,data={**payload.model_dump(), 'drawing_fingerprint':drawing_hash,
+    trial = EvaluationTrial(drawing_file_id=file_id,data={**payload.model_dump(mode="json", exclude={"pilot"} if payload.pilot is None else set()), 'drawing_fingerprint':drawing_hash,
         'recorded_at':datetime.now(timezone.utc).isoformat(), 'verification':'user_reported'})
     db.add(trial);db.commit();db.refresh(trial)
     return {'trial_id':trial.id,**trial.data}
@@ -71,8 +83,20 @@ def record_trial(file_id: int, payload: TrialRequest, db: Session = Depends(get_
 def trials(file_id: int, db: Session = Depends(get_db)):
     if db.get(DrawingFile,file_id) is None:
         raise HTTPException(404,'Drawing file not found.')
-    rows = db.query(EvaluationTrial).filter(EvaluationTrial.drawing_file_id == file_id).order_by(EvaluationTrial.id.desc()).limit(100).all()
+    rows = db.query(EvaluationTrial).filter(EvaluationTrial.drawing_file_id == file_id).order_by(EvaluationTrial.id.desc()).all()
     return [{'trial_id':r.id,**r.data} for r in rows]
+
+
+@router.get('/drawing-files/{file_id}/assist/trials/export')
+def export_trials(file_id: int, db: Session = Depends(get_db)):
+    records = trials(file_id, db)
+    return {'schema_version': 1, 'drawing_file_id': file_id, 'verification': 'user_reported',
+            'records': records, 'analysis': analyze_trials(records)}
+
+
+@router.get('/drawing-files/{file_id}/assist/trials/analysis')
+def trial_analysis(file_id: int, db: Session = Depends(get_db)):
+    return analyze_trials(trials(file_id, db))
 
 
 @router.get('/assist/config')

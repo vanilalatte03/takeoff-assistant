@@ -917,3 +917,11 @@ td select {
 @media (max-width: 700px) { .form-grid > fieldset { grid-template-columns: minmax(0, 1fr); } }
 .workflow-sources { display: grid; gap: 12px; margin: 16px 0; }
 .workflow-sources summary, .evidence-review summary { cursor: pointer; padding: 10px 0; }
+
+.form-grid > .pilot-observation { grid-column: 1 / -1; min-width: 0; }
+.pilot-observation .form-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+.pilot-observation .form-grid > p { grid-column: 1 / -1; }
+.pilot-observation label { min-width: 0; }
+@media (max-width: 700px) { .pilot-observation .form-grid { grid-template-columns: minmax(0, 1fr); } }
+
+.pilot-report { max-width: 100%; white-space: pre-wrap; overflow-wrap: anywhere; }

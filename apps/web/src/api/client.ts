@@ -72,6 +72,9 @@ export interface EvaluationTrial {
 export function getEvaluationTrials(fileId: number) {
   return requestJson<EvaluationTrial[]>(`/drawing-files/${fileId}/assist/trials`);
 }
+export function exportEvaluationTrials(fileId: number) {
+  return requestJson<{schema_version:number;records:EvaluationTrial[];analysis:Record<string,unknown>}>(`/drawing-files/${fileId}/assist/trials/export`);
+}
 export function saveEvaluationTrial(fileId: number, payload: Record<string, unknown>) {
   return requestJson<EvaluationTrial>(`/drawing-files/${fileId}/assist/trials`, {method:"POST",body:JSON.stringify(payload)});
 }
