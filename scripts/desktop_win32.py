@@ -137,7 +137,7 @@ class NativeWindow:
         try:
             if message == 0x0111:
                 action = self.actions.get(wparam & 0xFFFF)
-                if action:
+                if action and ((wparam >> 16) & 0xFFFF) == 0:  # BN_CLICKED only
                     action()
                     return 0
             elif message == 0x0113:
