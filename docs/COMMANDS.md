@@ -95,7 +95,7 @@ API 서버 환경에 `TAKEOFF_AI_API_KEY`와 `TAKEOFF_AI_MODEL`을 설정한 뒤
 - `GET /measurements/{id}/evidence`: 저장된 입력·단위 변환·공제·면 수·현재 원본 링크를 읽기 전용으로 조회. 소유 PDF 이외의 출처를 반환하지 않으며 원본/결과 변경 경고와 이전 기록 누락을 구분.
 - `POST /drawing-files/{id}/pages/{page}/assist/vision-preview`: region을 받아 로컬 crop PNG와 X-Crop-SHA256 헤더 반환. 외부 전송 없음.
 - `POST /drawing-files/{id}/pages/{page}/assist/vision`: 동일 region·preview_sha256·consent=true·failure_reason·note를 받아 선택 영역 판독 후보를 NEEDS_REVIEW로 기록.
-- `GET/POST /drawing-files/{id}/assist/trials`: 도면별 사용자 관찰 비교 기록 조회/저장. 수동/보조 모드, 과제, 전체 작업시간, 수정·개입·오류 수, 검수 결과, 도면 파일 fingerprint를 보존. 보조 방식은 해당 도면·방식의 실행 ID 필수.
+- `GET/POST /drawing-files/{id}/assist/trials`: 도면별 사용자 관찰 비교 기록 조회/저장. 수동/보조 모드, 과제, 전체 작업시간, 수정·개입·오류 수, 검수 결과, 도면 파일 fingerprint를 보존. 완료한 보조 방식은 해당 도면·방식의 실행 ID 필수이며, pilot v1의 실행 전 실패/중단은 실행 ID 없이 기록할 수 있다.
 
 연동 계약의 근거: [OpenAI 공식 Function calling 문서](https://developers.openai.com/api/docs/guides/function-calling). 실제 계정의 모델 호출과 비용은 별도 검증이 필요하다. 구현·검증 현황은 `docs/AI_ASSIST_PROGRESS.md`, 원본 발전 PRD는 `docs/AI_ASSIST_PRD.md`를 참조한다.
 

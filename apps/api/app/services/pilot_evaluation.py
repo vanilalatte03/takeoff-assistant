@@ -75,6 +75,8 @@ def analyze_trials(records: list[dict]) -> dict:
             reasons.append('sequence_mode_mismatch')
         if not isinstance(record.get('elapsed_seconds'), int) or record['elapsed_seconds'] <= 0:
             reasons.append('invalid_elapsed_seconds')
+        elif p['preparation'] == 'included' and p['preparation_seconds'] > record['elapsed_seconds']:
+            reasons.append('included_preparation_exceeds_elapsed')
         if not record.get('drawing_fingerprint'):
             reasons.append('missing_fingerprint')
         if reasons:
@@ -102,16 +104,24 @@ def analyze_trials(records: list[dict]) -> dict:
                 excluded.setdefault(rid, []).extend(reasons)
             continue
         by_mode = {r['mode']: r for r, _ in group}
-        baseline = by_mode['manual']['elapsed_seconds']
+        task_seconds = {r['mode']: r['elapsed_seconds'] - (observation['preparation_seconds']
+            if observation['preparation'] == 'included' else 0) for r, observation in group}
+        total_seconds = {r['mode']: r['elapsed_seconds'] + (observation['preparation_seconds']
+            if observation['preparation'] == 'excluded' else 0) for r, observation in group}
         comparisons.append({
             'record_ids': ids, 'task_key': first['task_key'], 'drawing_fingerprint': first['drawing_fingerprint'],
             'conditions': {k: p[k] for k in ['synthetic', 'comparison_set', 'participant', *fields]},
-            'seconds': {mode: r['elapsed_seconds'] for mode, r in by_mode.items()},
+            'recorded_elapsed_seconds': {mode: r['elapsed_seconds'] for mode, r in by_mode.items()},
+            'task_seconds_excluding_preparation': task_seconds,
+            'total_seconds_including_preparation': total_seconds,
             'observed_counts': {r['mode']: {**{key: r.get(key) for key in
                 ['correction_count', 'manual_interventions', 'error_count']},
                 'wrong_evidence_count': observation['wrong_evidence_count'],
                 'preparation_seconds': observation['preparation_seconds']} for r, observation in group},
-            'manual_minus_assisted_seconds': {mode: baseline - r['elapsed_seconds'] for mode, r in by_mode.items() if mode != 'manual'},
+            'manual_minus_assisted_task_seconds': {mode: task_seconds['manual'] - seconds
+                for mode, seconds in task_seconds.items() if mode != 'manual'},
+            'manual_minus_assisted_total_seconds': {mode: total_seconds['manual'] - seconds
+                for mode, seconds in total_seconds.items() if mode != 'manual'},
         })
     mode_summaries = []
     strata = defaultdict(list)

@@ -1,6 +1,6 @@
 from time import perf_counter
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing import Literal
 from sqlalchemy.orm import Session
 from sqlalchemy import update
@@ -44,6 +44,13 @@ class TrialRequest(BaseModel):
     review_result: Literal['adopted','rejected','needs_review']
     notes: str = Field(min_length=1, max_length=2000)
     pilot: PilotObservation | None = None
+
+    @model_validator(mode='after')
+    def consistent_preparation_time(self):
+        if self.pilot and self.pilot.preparation == 'included' and self.pilot.preparation_seconds > self.elapsed_seconds:
+            raise ValueError('포함된 준비 시간이 총 소요시간보다 클 수 없습니다.')
+        return self
+
 
 
 @router.post('/drawing-files/{file_id}/assist/trials', status_code=201)

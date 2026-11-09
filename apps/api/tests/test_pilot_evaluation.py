@@ -33,7 +33,7 @@ def test_empty_and_common_completed_group_with_explicit_order():
     assert report['excluded_count']==0
     assert report['common_completed_task_count']==1
     paired=report['comparisons'][0]
-    assert paired['manual_minus_assisted_seconds']=={'ai':40,'local':20}
+    assert paired['manual_minus_assisted_total_seconds']=={'ai':40,'local':20}
     assert paired['conditions']['synthetic'] is True
     assert paired['conditions']['sequence']==['manual','local','ai']
 
@@ -106,3 +106,30 @@ def test_api_optional_metadata_export_all_and_failed_before_provider_run(workflo
     assert exported['analysis']['excluded_count']==102
     assert 'pilot' not in exported['records'][-1]
     assert client.get('/drawing-files/999999/assist/trials/export').status_code==404
+
+
+def test_preparation_is_not_hidden_as_time_saving_and_included_time_is_not_double_counted():
+    rows=records()
+    for row, seconds, preparation in zip(rows,[100,60,40],[0,600,600]):
+        row['elapsed_seconds']=seconds
+        row['pilot'].update(preparation='excluded',preparation_seconds=preparation)
+    paired=analyze_trials(rows)['comparisons'][0]
+    assert paired['manual_minus_assisted_task_seconds']=={'local':40,'ai':60}
+    assert paired['manual_minus_assisted_total_seconds']=={'local':-560,'ai':-540}
+    assert paired['total_seconds_including_preparation']=={'manual':100,'local':660,'ai':640}
+    rows=records()
+    paired=analyze_trials(rows)['comparisons'][0]
+    assert paired['total_seconds_including_preparation']['manual']==120
+    assert paired['task_seconds_excluding_preparation']['manual']==115
+    rows[1]['pilot']['preparation_seconds']=101
+    report=analyze_trials(rows)
+    assert report['common_completed_task_count']==0
+    assert 'included_preparation_exceeds_elapsed' in next(r['reasons'] for r in report['excluded'] if r['trial_id']==2)
+
+
+def test_api_rejects_preparation_exceeding_included_elapsed(workflow):
+    _,file_id,_=prepare(workflow)
+    p=pilot();p['preparation_seconds']=121
+    response=workflow.post(f'/drawing-files/{file_id}/assist/trials',json={**manual(),'pilot':p})
+    assert response.status_code==422,response.text
+    assert workflow.get(f'/drawing-files/{file_id}/assist/trials').json()==[]
