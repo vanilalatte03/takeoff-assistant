@@ -64,6 +64,7 @@ PDF upload
 - Deductions: `Measurement.deductions_json`에 JSON으로 저장
 - Review state: `DRAFT`, `NEEDS_REVIEW`, `CONFIRMED`, `REJECTED`
 - Migration: SQLite의 RoomFinish 소속 컬럼은 기존 데이터를 보존하는 추가 방식으로 적용합니다. 명확한 sheet 소속만 채우며, 미배정 legacy 행을 임의의 PDF에 연결하지 않습니다. 세부 결정은 `docs/adr/0004-measurement-integrity.md`를 따릅니다.
+- `DrawingFile.stored_path`는 업로드 당시 절대 경로입니다. 저장 설정 변경만으로 기존 행을 이동시키지 않습니다. 복구는 정지된 SQLite 백업과 별도 복사 PDF를 `scripts/relocate_restored_uploads.py`로 검증하고, 명시 `--apply` 때 입력 DB를 읽기 전용 snapshot으로 복제해 새 출력 DB의 이 컬럼만 재매핑합니다. 모든 대상을 검증하고 새 파일로 배타적으로 공개하며 기존 DB/원본/다른 산출 필드는 변경하지 않습니다. 자동 fallback이나 startup migration은 없으며 [복구 절차](WINDOWS_LAUNCH.md#복구-원본을-덮어쓰지-않는-확인-절차)를 따릅니다.
 
 ## Measurement 저장 계약
 모든 계산된 수량은 다음 정보를 추적 가능하게 저장해야 합니다.
