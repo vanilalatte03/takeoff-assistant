@@ -30,6 +30,12 @@ def _no_sidecars(path):
         raise RecoveryError('DB sidecar가 남아 있습니다. 모든 서버를 정상 종료한 일관된 백업을 사용하세요. sidecar를 임의 삭제하지 마세요.')
 
 
+def _unchanged_source(path, digest):
+    _no_sidecars(path)
+    if _digest(path) != digest:
+        raise RecoveryError('검증 중 입력 DB가 변경됐습니다. 모든 서버를 종료한 백업을 사용하세요.')
+
+
 def _plan(connection, old, new):
     projects = {row[0] for row in connection.execute('SELECT id FROM projects')}
     rows = connection.execute('SELECT id, project_id, stored_path FROM drawing_files ORDER BY id').fetchall()
@@ -91,9 +97,12 @@ def relocate_database(source_db, old_uploads, new_uploads, output_db, *, apply=F
         raise RecoveryError('출력 DB가 이미 있거나 입력 DB와 같습니다. 새 이름을 사용하세요.')
     _no_sidecars(source)
     _no_sidecars(output)
+    source_digest = _digest(source)
     temporary = None
     try:
-        with closing(sqlite3.connect(source.as_uri() + '?mode=ro', uri=True, timeout=1)) as src:
+        # A stopped standalone snapshot only. Plain mode=ro may create WAL/SHM
+        # files even for a clean, closed WAL-mode DB. Never open a live DB here.
+        with closing(sqlite3.connect(source.as_uri() + '?mode=ro&immutable=1', uri=True, timeout=1)) as src:
             src.execute('PRAGMA query_only=ON')
             src.execute('BEGIN')
             if src.execute('PRAGMA integrity_check').fetchall() != [('ok',)]:
@@ -103,6 +112,7 @@ def relocate_database(source_db, old_uploads, new_uploads, output_db, *, apply=F
                       'originals_hash_checked': available,
                       'originals_unavailable': len(changes) - available}
             if not apply:
+                _unchanged_source(source, source_digest)
                 return report
             handle, name = tempfile.mkstemp(prefix='.takeoff-recovery-', suffix='.db', dir=new.parent)
             os.close(handle)
@@ -118,7 +128,7 @@ def relocate_database(source_db, old_uploads, new_uploads, output_db, *, apply=F
             # Detect changed/replaced PDFs before publishing any usable output.
             if changes != _plan(src, old, new)[0]:
                 raise RecoveryError('검증 중 PDF가 변경됐습니다. 서버 종료와 복사본을 확인하세요.')
-            _no_sidecars(source)
+            _unchanged_source(source, source_digest)
             _no_sidecars(output)
             # link is exclusive even on Windows; never overwrite a racing file.
             os.link(temporary, output)

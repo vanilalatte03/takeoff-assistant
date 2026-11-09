@@ -147,6 +147,32 @@ def test_all_paths_must_be_explicit_absolute_paths(backup):
     assert not output.exists()
 
 
+@pytest.mark.parametrize('apply', [False, True])
+def test_clean_closed_wal_backup_does_not_create_any_source_sidecar(backup, apply):
+    source, old, new, output = backup
+    with closing(sqlite3.connect(source)) as db:
+        assert db.execute('PRAGMA journal_mode=WAL').fetchone()[0] == 'wal'
+    before = {p.name: digest(p) for p in source.parent.iterdir() if p.is_file()}
+    assert set(before) == {'backup.db'}
+    relocate_database(*backup, apply=apply)
+    assert {p.name: digest(p) for p in source.parent.iterdir() if p.is_file()} == before
+    assert output.exists() is apply
+
+
+def test_source_db_change_during_snapshot_validation_aborts(backup):
+    import relocate_restored_uploads as module
+    real_plan = module._plan
+    def changed(*args):
+        result = real_plan(*args)
+        with closing(sqlite3.connect(backup[0])) as db:
+            db.execute('INSERT INTO projects VALUES(3)')
+            db.commit()
+        return result
+    with patch.object(module, '_plan', changed), pytest.raises(RecoveryError, match='입력 DB가 변경'):
+        relocate_database(*backup)
+    assert not backup[3].exists()
+
+
 def test_target_changed_after_validation_aborts_without_output(backup):
     import relocate_restored_uploads as module
     real_plan = module._plan
