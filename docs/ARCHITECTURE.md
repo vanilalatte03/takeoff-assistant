@@ -115,3 +115,7 @@ AI API에는 요청 문장만 전송하며 PDF 원문은 보내지 않는다. �
 `services/assist_vision.py`는 기존 텍스트 추출이 부족한 경우의 선택 영역 이미지 보완이다. 서버가 DB 소유 원본 PDF에서 사용자가 선택한 사각형만 PNG로 만든다. 미리보기는 로컬 응답이며, 모델 전송은 실패 유형·메모·권한 확인과 미리보기 SHA256 일치 검사를 요구한다. 모델이 반환한 치수·실 번호·마감 코드는 vision 후보로 구분하며 자동 확정·자동 단위 정규화를 하지 않는다. 입력 좌표는 원본 페이지 이미지 좌표, 모델 bbox는 crop 상대 좌표로 해석해 저장한다. 이미지 근거를 이용해 초안을 저장할 때 crop hash를 다시 검사한다.
 
 `evaluation_trials`는 같은 과제의 수동/보조 작업을 비교하는 사용자 관찰 기록이다. 전체 작업시간·수정/개입/오류 수·검수 결과·실행 ID·PDF 파일 hash를 저장한다. 프로그램이 판정한 정확도나 실무 성과로 취급하지 않는다. 기존 테이블을 바꾸지 않고 startup에서 새 테이블을 추가한다.
+
+## 파일럿 관찰 기록
+
+EvaluationTrial.data JSON의 optional pilot v1을 사용하며 기존 DB/legacy 기록을 유지한다. pilot_evaluation service가 도면별 전체 시도를 읽기 전용으로 분석한다. export API는 원본과 제외 이유·비교조건을 반환하고 ComparisonPanel에서 로컬 JSON으로 다운로드한다. 실사용 검증과 합성 fixture의 경계는 [FIELD_PILOT](FIELD_PILOT.md)을 따른다.

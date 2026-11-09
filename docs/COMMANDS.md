@@ -100,3 +100,7 @@ API 서버 환경에 `TAKEOFF_AI_API_KEY`와 `TAKEOFF_AI_MODEL`을 설정한 뒤
 연동 계약의 근거: [OpenAI 공식 Function calling 문서](https://developers.openai.com/api/docs/guides/function-calling). 실제 계정의 모델 호출과 비용은 별도 검증이 필요하다. 구현·검증 현황은 `docs/AI_ASSIST_PROGRESS.md`, 원본 발전 PRD는 `docs/AI_ASSIST_PRD.md`를 참조한다.
 
 이미지 입력 계약: [OpenAI 공식 Images and vision 문서](https://developers.openai.com/api/docs/guides/images-vision). 전체 PDF 대신 사용자가 확인한 PNG crop만 input_image로 전송한다.
+
+## 파일럿 준비 API
+
+도면별 `assist/trials/export`는 전체 원본 기록+분석 JSON, `assist/trials/analysis`는 사용자 관찰 분석이다. UI에서 로컬로 JSON을 내려받는다. 실행·첫 과제 양식·분모/제외 규칙은 [FIELD_PILOT](FIELD_PILOT.md)을 따른다. 실제 유료 호출 없이 `test_pilot_evaluation.py` 및 웹 `comparison.test.tsx`로 합성 검증한다.
