@@ -19,6 +19,7 @@ class Launcher:
         self.result = None
         self.closing = False
         self.env_file = None
+        self.vision_use_search_model = False
         self.opened = False
         self.reader_done = False
         self.ui = NativeWindow(self)
@@ -60,6 +61,11 @@ class Launcher:
         self.env_file = None
         self.ui.text('env_status', '설정 파일 없음 · 기존 환경변수는 유지하며, 키가 없으면 로컬 기능을 사용합니다.')
 
+    def toggle_vision(self):
+        if self.process is None:
+            self.vision_use_search_model = not self.vision_use_search_model
+            self.ui.checked('vision', self.vision_use_search_model)
+
     def start(self):
         if self.process is not None:
             return
@@ -67,6 +73,7 @@ class Launcher:
         self.ui.enable('start', False)
         self.ui.enable('env', False)
         self.ui.enable('clear_env', False)
+        self.ui.enable('vision', False)
         self.ui.enable('stop', True)
         self.result = None
         self.opened = False
@@ -76,6 +83,8 @@ class Launcher:
         command = [str(ROOT / 'apps/api/.venv311/Scripts/python.exe'), '-u', str(ROOT / 'scripts/desktop_runtime.py')]
         if self.env_file:
             command.append(self.env_file)
+        if self.vision_use_search_model:
+            command.append('--vision-use-search-model')
         try:
             self.process = subprocess.Popen(command, cwd=ROOT, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                             stderr=subprocess.DEVNULL, env=env, creationflags=CREATE_NO_WINDOW)
@@ -100,6 +109,7 @@ class Launcher:
         self.ui.enable('start', True)
         self.ui.enable('env', True)
         self.ui.enable('clear_env', True)
+        self.ui.enable('vision', True)
         self.ui.enable('stop', False)
         self.ui.enable('browser', False)
 

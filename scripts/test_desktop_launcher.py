@@ -23,6 +23,60 @@ def process():
     return owned
 
 
+@pytest.mark.parametrize('reuse', [False, True])
+def test_start_passes_only_explicit_vision_choice_and_freezes_it_until_stop(monkeypatch, reuse):
+    app, ui = launcher(monkeypatch)
+    module = importlib.import_module('desktop_launcher')
+    assert app.vision_use_search_model is False
+    app.env_file = 'C:/Synthetic Space/settings.env'
+    if reuse:
+        app.toggle_vision()
+        ui.checked.assert_called_once_with('vision', True)
+    owned = process()
+    popen = Mock(return_value=owned)
+    monkeypatch.setattr(module.subprocess, 'Popen', popen)
+    monkeypatch.setattr(module.threading, 'Thread', Mock())
+    app.start()
+    command = popen.call_args.args[0]
+    assert app.env_file in command
+    assert ('--vision-use-search-model' in command) is reuse
+    assert not popen.call_args.kwargs.get('shell')
+    ui.enable.assert_any_call('vision', False)
+    app.toggle_vision()  # A running session cannot change its settings.
+    assert app.vision_use_search_model is reuse
+    app.reset_buttons()
+    ui.enable.assert_any_call('vision', True)
+
+
+def test_unchecking_vision_removes_opt_in_without_modifying_external_setting(monkeypatch):
+    app, ui = launcher(monkeypatch)
+    app.env_file = 'C:/Synthetic Space/settings.env'
+    app.toggle_vision()
+    app.toggle_vision()
+    assert app.vision_use_search_model is False
+    assert app.env_file == 'C:/Synthetic Space/settings.env'
+    ui.checked.assert_any_call('vision', False)
+
+
+@pytest.mark.parametrize('notification', [0, 6, 7])
+def test_native_command_dispatch_requires_clicked_notification(notification):
+    # Pure dispatcher invocation with fake handles/API: no native window or
+    # injected OS message. Focus notifications must never count as opt-in.
+    module = importlib.import_module('desktop_win32')
+    window = module.NativeWindow.__new__(module.NativeWindow)
+    action = Mock()
+    window.actions = {123: action}
+    window.user = Mock()
+    window.user.DefWindowProcW.return_value = 77
+    result = window.dispatch(42, 0x0111, 123 | (notification << 16), 99)
+    if notification == 0:  # BN_CLICKED
+        action.assert_called_once_with()
+        assert result == 0
+    else:  # BN_SETFOCUS / BN_KILLFOCUS
+        action.assert_not_called()
+        assert result == 77
+
+
 def test_stop_closes_only_owned_supervisor_stdin_and_disables_actions(monkeypatch):
     app, ui = launcher(monkeypatch)
     app.process = owned = process()

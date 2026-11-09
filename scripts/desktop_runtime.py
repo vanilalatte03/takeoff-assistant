@@ -1,5 +1,6 @@
 """Owned local server session. No persisted PIDs, shell commands or port-based kills."""
 import ctypes
+from argparse import ArgumentParser
 from ctypes import wintypes
 import hashlib
 import json
@@ -99,7 +100,7 @@ def assert_ports_free():
                 raise LaunchError(f'{port} 포트를 다른 프로그램이 사용 중입니다. 해당 프로그램의 창에서 정상 종료한 뒤 다시 시작하세요. 실행기는 그 프로그램을 종료하지 않습니다.') from None
 
 
-def prepare(env_file=None, root=ROOT):
+def prepare(env_file=None, root=ROOT, vision_use_search_model=False):
     python = root / 'apps/api/.venv311/Scripts/python.exe'
     vite = root / 'apps/web/node_modules/vite/bin/vite.js'
     node = shutil.which('node')
@@ -127,6 +128,10 @@ def prepare(env_file=None, root=ROOT):
         for key, value in values.items():
             if value is not None:
                 env.setdefault(key.upper(), value)  # Same precedence as run_api.py.
+    if vision_use_search_model and not env.get('TAKEOFF_AI_VISION_MODEL'):
+        # Explicit opt-in for this child process only; never rewrite the file or
+        # global environment, and never replace a separately configured model.
+        env['TAKEOFF_AI_VISION_MODEL'] = env.get('TAKEOFF_AI_MODEL', '')
     env['PYTHONUTF8'] = '1'
     # Do not pass NODE_OPTIONS or npm shell wrappers to the owned web process.
     web_env = env.copy()
@@ -191,8 +196,8 @@ class Session:
             self.cancel.wait(0.15)
         raise LaunchError(f'{label} 응답 시간이 초과되었습니다. 시작한 서버를 정리합니다. 저장 폴더의 쓰기 권한·디스크 여유를 확인하고 다시 시작하세요.')
 
-    def start(self, env_file=None):
-        api, web, env, web_env = prepare(env_file, self.root)
+    def start(self, env_file=None, vision_use_search_model=False):
+        api, web, env, web_env = prepare(env_file, self.root, vision_use_search_model)
         assert_ports_free()
         # Settings paths only. Never emit env contents, model/key or raw child logs.
         self.emit('storage', storage_summary(env, self.root))
@@ -228,7 +233,7 @@ class Session:
         return self.forced
 
 
-def supervise(env_file=None):
+def supervise(env_file=None, vision_use_search_model=False):
     # This process and all children die together if GUI/supervisor fails.
     job = protect_supervisor()
     cancel = threading.Event()
@@ -243,7 +248,7 @@ def supervise(env_file=None):
     session = Session(cancel, emit)
     error = None
     try:
-        session.start(env_file)
+        session.start(env_file, vision_use_search_model)
         while not cancel.wait(0.2):
             if any(p.poll() is not None for p in (session.api, session.web)):
                 raise LaunchError('서버가 예기치 않게 종료되었습니다. 나머지 서버를 정리합니다. 마지막 저장 내용과 저장 폴더·의존성을 확인한 뒤 다시 시작하세요.')
@@ -262,5 +267,13 @@ def supervise(env_file=None):
         assert job
 
 
+def main():
+    parser = ArgumentParser(description=__doc__)
+    parser.add_argument('env_file', nargs='?')
+    parser.add_argument('--vision-use-search-model', action='store_true')
+    args = parser.parse_args()
+    supervise(args.env_file, args.vision_use_search_model)
+
+
 if __name__ == '__main__':
-    supervise(sys.argv[1] if len(sys.argv) > 1 else None)
+    main()
