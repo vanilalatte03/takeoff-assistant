@@ -34,18 +34,30 @@ API는 Uvicorn 정상 종료를 요청해 진행 중인 요청을 기다립니�
 ## 복구: 원본을 덮어쓰지 않는 확인 절차
 
 1. 모든 서버를 정상 종료합니다. 현재 데이터도 위 방식으로 **별도 백업**합니다. 복구 과정에서 기존 DB나 PDF를 삭제하거나 덮어쓰지 않습니다.
-2. 백업 전체를 **새 빈 복구 폴더**에 복사합니다. 사용했던 동일 앱 버전을 준비합니다. 별도 UTF-8 설정 파일에서 DB·원본·렌더링·Excel 경로 네 개를 이 복사본의 절대 경로로 지정합니다. Windows 경로는 `C:/...`처럼 슬래시를 사용하면 설정하기 쉽습니다.
-3. 기존 `TAKEOFF_*` 환경변수가 복구 설정을 덮어쓰지 않는지 확인합니다. 실행기에서 외부 설정을 선택해 시작하고 **실제 저장 위치**가 복구 폴더인지 먼저 확인합니다. 다르다면 즉시 정상 종료하고 설정을 바로잡습니다.
-4. 기존 프로젝트·PDF·수량·계산식·검수 상태와 Excel을 확인합니다. 확인 전 원본 데이터 폴더를 교체하지 않습니다. 문제가 있으면 종료하고 원본 설정으로 돌아가면 됩니다.
+2. 백업 전체를 **새 빈 복구 폴더**에 복사합니다. 사용했던 동일 앱 버전을 준비합니다. 서버는 아직 시작하지 않습니다. DB의 PDF 경로는 업로드 당시 절대 경로이므로 설정만 바꾸면 옛 위치를 계속 읽거나 원본 부재 시 실패합니다. 아래 경로 재매핑으로 **새 복구 DB**를 먼저 만듭니다.
+3. 아래 검증을 준비 담당자가 PowerShell에서 실행합니다. `--source-db`는 복사한 백업 DB, `--old-uploads`는 백업 당시 메모한 실제 uploads 절대 경로(지금 없어도 됨), `--new-uploads`는 복사한 PDF 폴더, `--output-db`는 이 폴더와 같은 상위 폴더의 **아직 없는 새 DB 파일명**입니다. 네 경로를 실제 위치로 바꾸세요.
+
+   ```powershell
+   .\apps\api\.venv311\Scripts\python.exe scripts/relocate_restored_uploads.py --source-db "C:/Takeoff Recovery/backup/takeoff_assistant.db" --old-uploads "C:/Takeoff/data/uploads" --new-uploads "C:/Takeoff Recovery/backup/uploads" --output-db "C:/Takeoff Recovery/backup/recovered.db"
+   ```
+
+   기본은 `DRY_RUN` 검증이며 아무 파일도 만들거나 수정하지 않습니다. 대상 수와 경로를 확인한 뒤 **같은 명령 끝에 `--apply`**를 붙입니다. `CREATED`를 확인해야 합니다. 입력 DB·PDF는 바꾸지 않으며 출력 DB가 이미 있으면 덮어쓰지 않습니다. 이미 만든 결과를 다시 만들려면 다른 새 이름을 사용합니다.
+
+   모든 PDF의 기존 루트·프로젝트별 하위 경로·복구 파일 존재를 검증합니다. 옛 PDF가 있으면 별도 복사본인지와 SHA256 일치도 검사합니다. `originals_unavailable`은 대조할 옛 파일이 없다는 뜻이며 복구 PDF의 진본성·업무 정답을 보증하지 않습니다. 기존/새 폴더 겹침·경로 이탈·중복·누락·변경·sidecar(`-wal`, `-shm`, `-journal`)가 있으면 중단합니다. sidecar는 임의 삭제하지 말고 정상 종료한 일관된 백업을 다시 준비합니다. 새 DB는 로컬 파일시스템의 하드링크를 이용해 기존 파일 교체 없이 공개하므로 이를 지원하지 않는 파일시스템에서는 중단합니다. 실패 후 자동으로 기존 DB나 원본으로 돌아가지 않습니다.
+4. 별도 UTF-8 설정 파일에서 DB는 **새로 만든 `recovered.db`**, 원본·렌더링·Excel은 복사본의 절대 경로로 지정합니다. 기존 `TAKEOFF_*` 환경변수가 복구 설정을 덮어쓰지 않는지 확인합니다. 실행기에서 외부 설정을 선택해 시작하고 **실제 저장 위치**가 복구 폴더인지 먼저 확인합니다. 다르다면 즉시 정상 종료하고 설정을 바로잡습니다.
+5. 기존 프로젝트·PDF 원본 재처리/치수 탐색·수량·계산식·검수 상태와 Excel을 확인합니다. 렌더된 이미지가 보이는 것만으로 원본 연결이 복구됐다고 판단하지 않습니다. 확인 전 원본 데이터 폴더를 교체하지 않습니다. 문제가 있으면 종료하고 원본 설정으로 돌아갑니다. 입력 백업 DB와 기존 원본은 그대로 남아 있습니다.
 
 예시(실제 경로로 바꾸고 Git 밖에 저장):
 
 ```dotenv
-TAKEOFF_DATABASE_URL=sqlite:///C:/Takeoff Recovery/backup/takeoff_assistant.db
+TAKEOFF_DATA_DIR=C:/Takeoff Recovery/backup
+TAKEOFF_DATABASE_URL=sqlite:///C:/Takeoff Recovery/backup/recovered.db
 TAKEOFF_UPLOADS_DIR=C:/Takeoff Recovery/backup/uploads
 TAKEOFF_RENDERED_PAGES_DIR=C:/Takeoff Recovery/backup/rendered
 TAKEOFF_EXPORTS_DIR=C:/Takeoff Recovery/backup/exports
 ```
+
+2026-11-09 합성 복구 검증: 임시 DB/PDF에서 옛 원본이 없을 때 설정만 변경한 재처리 404를 재현했고, 새 복구 DB에서는 200과 복구 PDF 읽기를 확인했습니다. 옛 원본이 남은 경우에도 복구본만 읽고, 측정값·입력 JSON·식·출처·검수 상태·Excel 및 입력 DB/PDF의 hash가 보존되는지 회귀 검사했습니다. 실제 업무 백업·복구를 수행한 증거는 아닙니다.
 
 ## 시작 실패·복구 안내
 

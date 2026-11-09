@@ -21,6 +21,7 @@
 | phase | `.\apps\api\.venv311\Scripts\python.exe scripts/execute.py <phase-name>` | no | 기여자용 phase 실행 |
 | create-dataset-template | `.\apps\api\.venv311\Scripts\python.exe scripts/create_example_dataset_template.py` | no | 공개용 빈 Excel 템플릿 재생성 |
 | check-dataset-template | `.\apps\api\.venv311\Scripts\python.exe scripts/validate_example_dataset.py docs/templates/example_dataset_template.xlsx --allow-empty-template` | no | 공개 템플릿 구조 확인 |
+| relocate-restored-uploads | `.\apps\api\.venv311\Scripts\python.exe scripts/relocate_restored_uploads.py --source-db "<백업-db-절대경로>" --old-uploads "<옛-uploads-절대경로>" --new-uploads "<복구-uploads-절대경로>" --output-db "<새-output-db-절대경로>"` | no | 기본 검증만 수행. 명시 `--apply`로 입력 불변·기존 출력 덮어쓰기 없이 새 복구 DB 생성. 서버 종료·복사본·제약은 [Windows 복구 안내](WINDOWS_LAUNCH.md#복구-원본을-덮어쓰지-않는-확인-절차) 참고 |
 | validate-dataset | `.\apps\api\.venv311\Scripts\python.exe scripts/validate_example_dataset.py data/samples/takeoff_example_dataset_private.xlsx` | no | 비공개 산출 예시 workbook 구조·필수 값 확인 |
 | select-evaluation-cases | `.\apps\api\.venv311\Scripts\python.exe scripts/load_evaluation_cases.py <workbook.xlsx> <reviews.json> --scope retrieval` | no | 검수된 검색 정답 선택·제외 이유 조회. 수량은 `--scope quantity`, [검수 계약](VERIFIED_EVALUATION_CASES.md) 참고 |
 | evaluate-retrieval | `.\apps\api\.venv311\Scripts\python.exe scripts/evaluate_retrieval.py --output "$env:TEMP\retrieval-current.json" --baseline docs/evaluation/retrieval-baseline-v1.json` | no | 고정 공개 합성 PDF의 검색 기준선 비교. 실제 AI는 `--ai-opt-in` 명시 시에만 호출. [지표·검수·한계](RETRIEVAL_BASELINE.md) 참고 |
