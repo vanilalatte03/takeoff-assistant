@@ -84,6 +84,51 @@ def test_non_sqlite_connection_string_is_not_displayed():
     assert 'password' not in str(runtime.storage_summary({'TAKEOFF_DATABASE_URL': 'postgres://user:password@host/db'}))
 
 
+@pytest.mark.parametrize('reuse, configured, expected', [
+    (False, '', ''), (True, '', 'image-capable-search'),
+    (False, 'separate-vision', 'separate-vision'), (True, 'separate-vision', 'separate-vision'),
+])
+def test_vision_reuse_is_explicit_process_only_and_preserves_separate_model(tmp_path, monkeypatch, capsys, reuse, configured, expected):
+    root = prepared_root(tmp_path, monkeypatch)
+    for key in list(os.environ):
+        if key.upper().startswith('TAKEOFF_AI_'):
+            monkeypatch.delenv(key)
+    external = tmp_path / 'synthetic.env'
+    content = f'TAKEOFF_AI_MODEL=image-capable-search\nTAKEOFF_AI_API_KEY=synthetic-key\nTAKEOFF_AI_VISION_MODEL={configured}\n'
+    external.write_text(content, encoding='utf-8')
+    _, _, env, web_env = runtime.prepare(external, root, vision_use_search_model=reuse)
+    assert env.get('TAKEOFF_AI_VISION_MODEL', '') == expected
+    assert external.read_text(encoding='utf-8') == content
+    assert not os.environ.get('TAKEOFF_AI_VISION_MODEL')
+    assert not any(key.startswith('TAKEOFF_') for key in web_env)
+    assert not capsys.readouterr().out
+
+
+def test_vision_reuse_uses_effective_process_settings_and_has_no_sticky_state(tmp_path, monkeypatch):
+    root = prepared_root(tmp_path, monkeypatch)
+    monkeypatch.setenv('TAKEOFF_AI_MODEL', 'process-search')
+    monkeypatch.delenv('TAKEOFF_AI_VISION_MODEL', raising=False)
+    external = tmp_path / 'synthetic.env'
+    external.write_text('TAKEOFF_AI_MODEL=file-search\n', encoding='utf-8')
+    assert runtime.prepare(external, root, vision_use_search_model=True)[2]['TAKEOFF_AI_VISION_MODEL'] == 'process-search'
+    assert not runtime.prepare(external, root)[2].get('TAKEOFF_AI_VISION_MODEL')
+    monkeypatch.setenv('TAKEOFF_AI_VISION_MODEL', 'process-vision')
+    assert runtime.prepare(external, root, vision_use_search_model=True)[2]['TAKEOFF_AI_VISION_MODEL'] == 'process-vision'
+
+
+@pytest.mark.parametrize('arguments, expected', [
+    ([], (None, False)),
+    (['C:/Synthetic Space/settings.env', '--vision-use-search-model'], ('C:/Synthetic Space/settings.env', True)),
+    (['--vision-use-search-model'], (None, True)),
+])
+def test_supervisor_cli_parses_optional_env_and_explicit_vision_flag(monkeypatch, arguments, expected):
+    monkeypatch.setattr(sys, 'argv', ['desktop_runtime.py', *arguments])
+    supervisor = Mock()
+    monkeypatch.setattr(runtime, 'supervise', supervisor)
+    runtime.main()
+    supervisor.assert_called_once_with(*expected)
+
+
 def test_windows_mixed_case_env_preserves_process_precedence_and_redaction(tmp_path, monkeypatch):
     root = prepared_root(tmp_path, monkeypatch)
     external = tmp_path / 'mixed.env'
@@ -232,7 +277,8 @@ def test_foreign_http_200_without_owned_child_signal_is_not_ready(monkeypatch):
 
 
 @pytest.mark.skipif(os.name != 'nt', reason='Windows prepared runtime integration')
-def test_real_supervisor_graceful_stop_preserves_temporary_sqlite(tmp_path):
+@pytest.mark.parametrize('reuse_vision', [False, True])
+def test_real_supervisor_graceful_stop_preserves_temporary_sqlite(tmp_path, reuse_vision):
     try:
         runtime.assert_ports_free()
     except runtime.LaunchError:
@@ -246,8 +292,12 @@ def test_real_supervisor_graceful_stop_preserves_temporary_sqlite(tmp_path):
     env.update({'PYTHONUTF8': '1', 'TAKEOFF_DATABASE_URL': f'sqlite:///{(data / "qa.db").as_posix()}',
                 'TAKEOFF_DATA_DIR': str(data), 'TAKEOFF_UPLOADS_DIR': str(data / 'uploads'),
                 'TAKEOFF_RENDERED_PAGES_DIR': str(data / 'rendered'), 'TAKEOFF_EXPORTS_DIR': str(data / 'exports'),
-                'TAKEOFF_AI_API_KEY': '', 'TAKEOFF_AI_MODEL': '', 'TAKEOFF_AI_VISION_MODEL': ''})
-    process = subprocess.Popen([str(root / 'apps/api/.venv311/Scripts/python.exe'), '-u', str(root / 'scripts/desktop_runtime.py')],
+                'TAKEOFF_AI_API_KEY': 'synthetic-not-a-real-key' if reuse_vision else '',
+                'TAKEOFF_AI_MODEL': 'synthetic-image-model' if reuse_vision else '', 'TAKEOFF_AI_VISION_MODEL': ''})
+    command = [str(root / 'apps/api/.venv311/Scripts/python.exe'), '-u', str(root / 'scripts/desktop_runtime.py')]
+    if reuse_vision:
+        command.append('--vision-use-search-model')
+    process = subprocess.Popen(command,
                                cwd=root, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE, creationflags=runtime.CREATE_NO_WINDOW)
     events = queue.Queue()
@@ -267,7 +317,9 @@ def test_real_supervisor_graceful_stop_preserves_temporary_sqlite(tmp_path):
             pytest.fail('Owned servers never signaled ready')
         opener = build_opener(ProxyHandler({}))
         with opener.open('http://127.0.0.1:8000/assist/config', timeout=5) as response:
-            assert json.load(response)['ai_available'] is False
+            config = json.load(response)
+            assert config['ai_available'] is reuse_vision
+            assert config['vision_available'] is reuse_vision
         request = Request('http://127.0.0.1:8000/projects', data=b'{"name":"synthetic-launcher-save"}',
                           headers={'Content-Type': 'application/json'}, method='POST')
         with opener.open(request, timeout=5) as response:

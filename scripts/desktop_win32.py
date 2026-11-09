@@ -51,7 +51,7 @@ class NativeWindow:
             raise ctypes.WinError(ctypes.get_last_error())
         self.handle = self.user.CreateWindowExW(0, wc.class_name, 'Takeoff Assistant 실행기',
                                                 0x00CA0000, -2147483648, -2147483648,
-                                                800, 650, None, None, self.instance, None)
+                                                800, 706, None, None, self.instance, None)
         if not self.handle:
             raise ctypes.WinError(ctypes.get_last_error())
         self.controls = {}
@@ -65,13 +65,18 @@ class NativeWindow:
         self.button('외부 설정 파일 선택 (선택 사항)', 'env', 24, 222, 360, owner.choose_env)
         self.button('설정 파일 선택 해제', 'clear_env', 400, 222, 220, owner.clear_env)
         self.add('STATIC', '설정 파일 없음 · 키가 없으면 로컬 검색·계산·Excel을 사용합니다.', 'env_status', 24, 264, 740, 42)
-        self.add('EDIT', '', 'storage', 24, 310, 740, 140,
+        identifier = self.add('BUTTON', '검색 모델을 이미지 판독에도 사용 (이미지 입력 지원 필요)',
+                              'vision', 24, 306, 740, 26, 0x00010000 | 0x0002)
+        self.actions[identifier] = owner.toggle_vision
+        self.add('STATIC', '기본 꺼짐 · 별도 판독 모델은 유지 · 설정 파일 미수정 · 실제 전송은 작업 화면에서 확인',
+                 'vision_help', 24, 336, 740, 26)
+        self.add('EDIT', '', 'storage', 24, 366, 740, 140,
                  0x00800000 | 0x00200000 | 0x0004 | 0x0800)
         self.add('STATIC', '종료 전 브라우저에서 저장 완료를 확인하세요. 창의 ×도 안전 종료합니다.\r\n'
                  '안전 종료 완료 뒤 DB·업로드·이미지·Excel을 함께 백업하세요.\r\n'
                  '종료 중에는 창을 강제 종료하지 마세요. 저장 요청을 최대 25초 기다립니다.',
-                 'help', 24, 468, 740, 76)
-        self.button('백업·복구와 오류 해결 안내', 'docs', 24, 556, 360, owner.open_docs)
+                 'help', 24, 524, 740, 76)
+        self.button('백업·복구와 오류 해결 안내', 'docs', 24, 612, 360, owner.open_docs)
         self.enable('stop', False)
         self.enable('browser', False)
         self.user.SetTimer(self.handle, 1, 100, None)
@@ -98,6 +103,9 @@ class NativeWindow:
 
     def enable(self, name, enabled):
         self.user.EnableWindow(self.controls[name], enabled)
+
+    def checked(self, name, checked):
+        self.user.SendMessageW(self.controls[name], 0x00F1, int(checked), 0)  # BM_SETCHECK
 
     def message(self, title, text):
         self.user.MessageBoxW(self.handle, text, title, 0x40)
