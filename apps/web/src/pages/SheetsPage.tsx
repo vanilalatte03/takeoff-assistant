@@ -31,7 +31,7 @@ function parseDrawingFileId(value: string) {
 
 export function SheetsPage() {
   const [drawingFileId, setDrawingFileId] = useDrawingFileSelection();
-  return <><section className="panel toolbar-form"><DrawingFilePicker value={drawingFileId} onChange={setDrawingFileId} /></section>
+  return <><section className="panel drawing-context"><DrawingFilePicker value={drawingFileId} onChange={setDrawingFileId} /></section>
     <SheetsPageContent key={drawingFileId} drawingFileId={drawingFileId} /></>;
 }
 

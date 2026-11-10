@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
+import { measurementLabels } from "../measurementLabels";
 import { calculateMeasurement, updateMeasurement } from "../api/client";
 import { hasInvalidStoredQuantity, measurementUnits, mergeSourceSheets } from "../measurementIntegrity";
 import type {
@@ -250,8 +251,8 @@ function computePreview(draft: CalculationDraft): PreviewResult {
     }
 
     if (draft.calculationType === "AREA_RECTANGLE") {
-      const width = parseRequiredPositive(draft.width, "Width");
-      const height = parseRequiredPositive(draft.height, "Height");
+      const width = parseRequiredPositive(draft.width, "가로");
+      const height = parseRequiredPositive(draft.height, "높이·세로");
       return {
         ready: true,
         formula: `${formulaNumber(draft.width)} * ${formulaNumber(draft.height)}${deductions ? ` - ${deductionFormula(draft.deductions)}` : ""}`,
@@ -261,8 +262,8 @@ function computePreview(draft: CalculationDraft): PreviewResult {
     }
 
     if (draft.calculationType === "PERIMETER_RECTANGLE") {
-      const width = parseRequiredPositive(draft.width, "Width");
-      const height = parseRequiredPositive(draft.height, "Height");
+      const width = parseRequiredPositive(draft.width, "가로");
+      const height = parseRequiredPositive(draft.height, "높이·세로");
       const baseFormula = `(${formulaNumber(draft.width)} + ${formulaNumber(draft.height)}) * 2`;
       return {
         ready: true,
@@ -273,8 +274,8 @@ function computePreview(draft: CalculationDraft): PreviewResult {
     }
 
     if (draft.calculationType === "WALL_AREA") {
-      const length = parseRequiredPositive(draft.length, "Length");
-      const height = parseRequiredPositive(draft.height, "Height");
+      const length = parseRequiredPositive(draft.length, "길이");
+      const height = parseRequiredPositive(draft.height, "높이·세로");
       const baseFormula = `${formulaNumber(draft.length)} * ${formulaNumber(draft.height)}`;
       return {
         ready: true,
@@ -285,8 +286,8 @@ function computePreview(draft: CalculationDraft): PreviewResult {
     }
 
     if (draft.calculationType === "PARTITION_AREA") {
-      const length = parseRequiredPositive(draft.length, "Length");
-      const height = parseRequiredPositive(draft.height, "Height");
+      const length = parseRequiredPositive(draft.length, "길이");
+      const height = parseRequiredPositive(draft.height, "높이·세로");
       const sideCount = parseRequiredPositive(draft.sideCount, "Side count");
       const baseFormula = `${formulaNumber(draft.length)} * ${formulaNumber(draft.height)} * ${formulaNumber(draft.sideCount)}`;
       return {
@@ -580,7 +581,7 @@ export function MeasurementCalculationForm({ measurement, onSaved, showEvidence 
         </div>
       ) : currentMeasurement.status === "REJECTED" ? <p>거절된 행은 읽기 전용입니다.</p> : null}
 
-      {showEvidence && <ReviewEvidencePanel measurement={currentMeasurement}/>}
+      {showEvidence && <ReviewEvidencePanel measurement={currentMeasurement} defaultOpen={currentMeasurement.quantity !== null}/>}
 
       <fieldset disabled={isReadOnly || isSaving || isSavingMetadata} className="integrity-fieldset">
       <div className="metadata-editor">
@@ -592,39 +593,39 @@ export function MeasurementCalculationForm({ measurement, onSaved, showEvidence 
         </div>
         <div className="field-row two">
           <label>
-            <span>Category</span>
+            <span>분류</span>
             <input value={currentMetadataDraft.category} onChange={(event) => updateMetadataDraft({ category: event.target.value })} />
           </label>
           <label>
-            <span>Code</span>
+            <span>마감 코드</span>
             <input value={currentMetadataDraft.finishCode} onChange={(event) => updateMetadataDraft({ finishCode: event.target.value })} />
           </label>
         </div>
         <div className="field-row two">
           <label>
-            <span>Measurement Type</span>
+            <span>산출 종류</span>
             <select value={currentMetadataDraft.measurementType} onChange={(event) => handleMeasurementTypeChange(event.target.value as MeasurementType)}>
               {measurementTypes.map((type) => (
                 <option key={type} value={type}>
-                  {type}
+                  {measurementLabels[type]}
                 </option>
               ))}
             </select>
           </label>
           <label>
-            <span>Unit</span>
+            <span>단위</span>
             <input value={currentMetadataDraft.unit} readOnly />
           </label>
         </div>
         <label>
-          <span>Memo</span>
+          <span>검수 메모</span>
           <input value={currentMetadataDraft.memo} onChange={(event) => updateMetadataDraft({ memo: event.target.value })} />
         </label>
       </div>
 
       <form className="calculation-form" onSubmit={handleSubmit}>
         <label>
-          <span>Calculation Type</span>
+          <span>계산 방식</span>
           <select
             value={currentDraft.calculationType}
             onChange={(event) =>
@@ -643,18 +644,18 @@ export function MeasurementCalculationForm({ measurement, onSaved, showEvidence 
         </label>
 
         <label>
-          <span>Source Sheets</span>
+          <span>출처 도면</span>
           <input value={currentDraft.sourceSheets} onChange={(event) => updateDraft({ sourceSheets: event.target.value })} />
         </label>
 
         {showWidthHeight ? (
           <div className="field-row two">
             <label>
-              <span>Width (m)</span>
+              <span>가로 (m)</span>
               <input value={currentDraft.width} inputMode="decimal" onChange={(event) => updateDraft({ width: event.target.value })} />
             </label>
             <label>
-              <span>Height (m)</span>
+              <span>높이·세로 (m)</span>
               <input value={currentDraft.height} inputMode="decimal" onChange={(event) => updateDraft({ height: event.target.value })} />
             </label>
           </div>
@@ -663,11 +664,11 @@ export function MeasurementCalculationForm({ measurement, onSaved, showEvidence 
         {showLengthHeight ? (
           <div className="field-row two">
             <label>
-              <span>Length (m)</span>
+              <span>길이 (m)</span>
               <input value={currentDraft.length} inputMode="decimal" onChange={(event) => updateDraft({ length: event.target.value })} />
             </label>
             <label>
-              <span>Height (m)</span>
+              <span>높이·세로 (m)</span>
               <input value={currentDraft.height} inputMode="decimal" onChange={(event) => updateDraft({ height: event.target.value })} />
             </label>
           </div>
@@ -675,14 +676,14 @@ export function MeasurementCalculationForm({ measurement, onSaved, showEvidence 
 
         {currentDraft.calculationType === "PARTITION_AREA" ? (
           <label>
-            <span>Side Count</span>
+            <span>산출 면 수</span>
             <input value={currentDraft.sideCount} inputMode="decimal" onChange={(event) => updateDraft({ sideCount: event.target.value })} />
           </label>
         ) : null}
 
         {currentDraft.calculationType === "COUNT" ? (
           <label>
-            <span>Count</span>
+            <span>개수</span>
             <input value={currentDraft.count} inputMode="decimal" onChange={(event) => updateDraft({ count: event.target.value })} />
           </label>
         ) : null}
@@ -690,12 +691,12 @@ export function MeasurementCalculationForm({ measurement, onSaved, showEvidence 
         {currentDraft.calculationType === "CUSTOM" ? (
           <>
             <label>
-              <span>Formula</span>
+              <span>계산식</span>
               <input value={currentDraft.customFormula} onChange={(event) => updateDraft({ customFormula: event.target.value })} />
             </label>
             <div className="field-row two">
               <label>
-                <span>Quantity</span>
+                <span>수량</span>
                 <input
                   value={currentDraft.customQuantity}
                   inputMode="decimal"
@@ -703,7 +704,7 @@ export function MeasurementCalculationForm({ measurement, onSaved, showEvidence 
                 />
               </label>
               <label>
-                <span>Unit</span>
+                <span>단위</span>
                   <input value={currentDraft.customUnit} readOnly />
               </label>
             </div>
@@ -713,7 +714,7 @@ export function MeasurementCalculationForm({ measurement, onSaved, showEvidence 
         {showDeductions ? (
           <div className="deduction-editor">
             <div className="section-heading compact-heading">
-              <h3>Deductions</h3>
+              <h3>공제</h3>
               <button type="button" className="button-secondary" onClick={addDeduction}>
                 공제 추가
               </button>
@@ -723,21 +724,21 @@ export function MeasurementCalculationForm({ measurement, onSaved, showEvidence 
                 {currentDraft.deductions.map((deduction) => (
                   <div className="deduction-row" key={deduction.id}>
                     <input
-                      aria-label="Deduction label"
-                      placeholder="label"
+                      aria-label="공제 이름"
+                      placeholder="공제 이름"
                       value={deduction.label}
                       onChange={(event) => updateDeduction(deduction.id, { label: event.target.value })}
                     />
                     <input
-                      aria-label="Deduction amount"
-                      placeholder="amount"
+                      aria-label="공제 수량"
+                      placeholder="공제 수량"
                       inputMode="decimal"
                       value={deduction.amount}
                       onChange={(event) => updateDeduction(deduction.id, { amount: event.target.value })}
                     />
                     <input
-                      aria-label="Deduction formula"
-                      placeholder="formula"
+                      aria-label="공제 계산식"
+                      placeholder="공제 계산식"
                       value={deduction.formula}
                       onChange={(event) => updateDeduction(deduction.id, { formula: event.target.value })}
                     />

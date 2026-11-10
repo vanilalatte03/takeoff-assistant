@@ -42,7 +42,7 @@ function viewerProps(pageIndex = 0) {
 async function readyViewer(rows: Measurement[] = [measurement()]) {
   vi.mocked(api.listMeasurements).mockResolvedValue(rows);
   const view = render(<ManualMeasurementViewer {...viewerProps()} />);
-  await waitFor(() => expect(screen.getByLabelText("저장할 Measurement 후보").querySelectorAll("option").length).toBeGreaterThan(0));
+  await waitFor(() => expect(screen.getByLabelText("저장할 산출 후보").querySelectorAll("option").length).toBeGreaterThan(0));
   const image = screen.getByRole("img");
   Object.defineProperties(image, { naturalWidth: { value: 1000 }, naturalHeight: { value: 1000 } });
   fireEvent.load(image);
@@ -66,8 +66,8 @@ describe("measurement integrity", () => {
     const view = render(<MeasurementCalculationForm measurement={row} onSaved={vi.fn()} />);
     view.rerender(<MeasurementCalculationForm measurement={measurement({ id: 2 })} onSaved={vi.fn()} />);
     view.rerender(<MeasurementCalculationForm measurement={row} onSaved={vi.fn()} />);
-    expect((screen.getByLabelText("Length (m)") as HTMLInputElement).value).toBe("4.2");
-    expect((screen.getByLabelText("Deduction amount") as HTMLInputElement).value).toBe("1.89");
+    expect((screen.getByLabelText("길이 (m)") as HTMLInputElement).value).toBe("4.2");
+    expect((screen.getByLabelText("공제 수량") as HTMLInputElement).value).toBe("1.89");
     fireEvent.click(screen.getByRole("button", { name: "계산 저장" }));
     await waitFor(() => expect(api.calculateMeasurement).toHaveBeenCalledWith(1, expect.objectContaining({ wall_length: "4.2", wall_height: "4.6", deductions: [{ amount: "1.89", label: "door", formula: "0.9 * 2.1" }] })));
   });
@@ -78,9 +78,9 @@ describe("measurement integrity", () => {
       { slot: "wall_height", raw_text: "4600", normalized_value: "4.6", source_sheet: "AE101" },
     ] } } });
     render(<MeasurementCalculationForm measurement={row} onSaved={vi.fn()} />);
-    expect((screen.getByLabelText("Deduction amount") as HTMLInputElement).value).toBe("1.89");
+    expect((screen.getByLabelText("공제 수량") as HTMLInputElement).value).toBe("1.89");
     expect(screen.getByText("17.43 m2")).toBeTruthy();
-    expect((screen.getByLabelText("Source Sheets") as HTMLInputElement).value).toBe("AE601, AE101");
+    expect((screen.getByLabelText("출처 도면") as HTMLInputElement).value).toBe("AE601, AE101");
   });
 
   it("prefers exact saved deduction inputs over rounded legacy display evidence", async () => {
@@ -89,7 +89,7 @@ describe("measurement integrity", () => {
     } } });
     vi.mocked(api.calculateMeasurement).mockResolvedValue(row);
     render(<MeasurementCalculationForm measurement={row} onSaved={vi.fn()} />);
-    expect((screen.getByLabelText("Deduction amount") as HTMLInputElement).value).toBe("0.005");
+    expect((screen.getByLabelText("공제 수량") as HTMLInputElement).value).toBe("0.005");
     expect(screen.getByText("1.00 m2")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "계산 저장" }));
     await waitFor(() => expect(api.calculateMeasurement).toHaveBeenCalledWith(1, expect.objectContaining({ deductions: [{ amount: "0.005", label: null, formula: null }] })));
@@ -101,10 +101,10 @@ describe("measurement integrity", () => {
     fireEvent.click(screen.getByRole("button", { name: "사각형 면적" }));
     fireEvent.click(view.canvas, { clientX: 0, clientY: 0 });
     fireEvent.click(view.canvas, { clientX: 100, clientY: 100 });
-    expect((screen.getByRole("button", { name: "Measurement에 저장" }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole("button", { name: "산출에 저장" }) as HTMLButtonElement).disabled).toBe(false);
     view.rerender(<ManualMeasurementViewer {...viewerProps(1)} />);
     expect(screen.getByText("스케일 모드에서 두 점을 선택하세요.")).toBeTruthy();
-    expect((screen.getByRole("button", { name: "Measurement에 저장" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "산출에 저장" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("does not offer area rows as targets for length measurements", async () => {
@@ -112,8 +112,8 @@ describe("measurement integrity", () => {
     calibrate(view.canvas);
     fireEvent.click(screen.getByRole("button", { name: "선 길이" }));
     calibrate(view.canvas);
-    expect(screen.getByLabelText("저장할 Measurement 후보").querySelectorAll("option")).toHaveLength(0);
-    expect((screen.getByRole("button", { name: "Measurement에 저장" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByLabelText("저장할 산출 후보").querySelectorAll("option")).toHaveLength(0);
+    expect((screen.getByRole("button", { name: "산출에 저장" }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("preserves provenance and notes while replacing obsolete calculation evidence", async () => {
@@ -123,7 +123,7 @@ describe("measurement integrity", () => {
     fireEvent.click(screen.getByRole("button", { name: "사각형 면적" }));
     fireEvent.click(view.canvas, { clientX: 0, clientY: 0 });
     fireEvent.click(view.canvas, { clientX: 100, clientY: 100 });
-    fireEvent.click(screen.getByRole("button", { name: "Measurement에 저장" }));
+    fireEvent.click(screen.getByRole("button", { name: "산출에 저장" }));
     await waitFor(() => expect(api.updateMeasurement).toHaveBeenCalled());
     const patch = vi.mocked(api.updateMeasurement).mock.calls[0][1];
     expect(patch.source_sheets).toBe("AE601, AE101");
@@ -144,14 +144,14 @@ describe("measurement integrity", () => {
     fireEvent.click(screen.getByRole("button", { name: "사각형 면적" }));
     fireEvent.click(view.canvas, { clientX: 0, clientY: 0 });
     fireEvent.click(view.canvas, { clientX: 100, clientY: 100 });
-    fireEvent.click(screen.getByRole("button", { name: "Measurement에 저장" }));
+    fireEvent.click(screen.getByRole("button", { name: "산출에 저장" }));
     await waitFor(() => expect(api.updateMeasurement).toHaveBeenCalled());
     const saved = await vi.mocked(api.updateMeasurement).mock.results[0].value;
     view.unmount();
     render(<MeasurementCalculationForm measurement={saved} onSaved={vi.fn()} />);
-    expect((screen.getByLabelText("Calculation Type") as HTMLSelectElement).value).toBe("CUSTOM");
-    expect((screen.getByLabelText("Quantity") as HTMLInputElement).value).toBe("17.64");
-    expect(screen.queryByLabelText("Width (m)")).toBeNull();
+    expect((screen.getByLabelText("계산 방식") as HTMLSelectElement).value).toBe("CUSTOM");
+    expect((screen.getByLabelText("수량") as HTMLInputElement).value).toBe("17.64");
+    expect(screen.queryByLabelText("가로 (m)")).toBeNull();
   });
 
   it("requires an explicit review transition before editing a confirmed row", async () => {
@@ -159,7 +159,7 @@ describe("measurement integrity", () => {
     const onSaved = vi.fn();
     vi.mocked(api.updateMeasurement).mockResolvedValue(measurement());
     render(<MeasurementCalculationForm measurement={row} onSaved={onSaved} />);
-    expect(screen.getByLabelText("Category").matches(":disabled")).toBe(true);
+    expect(screen.getByLabelText("분류").matches(":disabled")).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "재검토 시작" }));
     await waitFor(() => expect(api.updateMeasurement).toHaveBeenCalledWith(1, { status: "DRAFT" }));
     expect(onSaved).toHaveBeenCalled();
@@ -173,8 +173,8 @@ describe("measurement integrity", () => {
     });
     vi.mocked(api.calculateMeasurement).mockResolvedValue(measurement({ quantity: "6.00", formula: "2 * 3" }));
     render(<MeasurementCalculationForm measurement={legacy} onSaved={vi.fn()} />);
-    fireEvent.change(screen.getByLabelText("Width (m)"), { target: { value: "2" } });
-    fireEvent.change(screen.getByLabelText("Height (m)"), { target: { value: "3" } });
+    fireEvent.change(screen.getByLabelText("가로 (m)"), { target: { value: "2" } });
+    fireEvent.change(screen.getByLabelText("높이·세로 (m)"), { target: { value: "3" } });
     fireEvent.click(screen.getByRole("button", { name: "계산 저장" }));
     await waitFor(() => expect(api.calculateMeasurement).toHaveBeenCalledWith(1, expect.objectContaining({ width: "2", height: "3" })));
     expect(api.updateMeasurement).toHaveBeenCalledWith(1, expect.objectContaining({ quantity: null, formula: null, unit: "m2" }));
@@ -188,8 +188,8 @@ describe("measurement integrity", () => {
     });
     vi.mocked(api.calculateMeasurement).mockResolvedValue(measurement({ measurement_type: "COUNT", quantity: "2", formula: "2", unit: "EA" }));
     render(<MeasurementCalculationForm measurement={row} onSaved={vi.fn()} />);
-    fireEvent.change(screen.getByLabelText("Measurement Type"), { target: { value: "COUNT" } });
-    fireEvent.change(screen.getByLabelText("Count"), { target: { value: "2" } });
+    fireEvent.change(screen.getByLabelText("산출 종류"), { target: { value: "COUNT" } });
+    fireEvent.change(screen.getByLabelText("개수"), { target: { value: "2" } });
     fireEvent.click(screen.getByRole("button", { name: "계산 저장" }));
     await waitFor(() => expect(api.calculateMeasurement).toHaveBeenCalledWith(1, expect.objectContaining({ calculation_type: "COUNT", count: "2" })));
     expect(api.updateMeasurement).toHaveBeenCalledWith(1, expect.objectContaining({ measurement_type: "COUNT", unit: "EA", quantity: null, formula: null }));
@@ -197,7 +197,7 @@ describe("measurement integrity", () => {
 
   it("invalidates the previous calculation when saving a changed measurement type without calculating", async () => {
     render(<MeasurementCalculationForm measurement={measurement({ quantity: "17.43", formula: "old area" })} onSaved={vi.fn()} />);
-    fireEvent.change(screen.getByLabelText("Measurement Type"), { target: { value: "COUNT" } });
+    fireEvent.change(screen.getByLabelText("산출 종류"), { target: { value: "COUNT" } });
     fireEvent.click(screen.getByRole("button", { name: "후보 정보 저장" }));
     await waitFor(() => expect(api.updateMeasurement).toHaveBeenCalledWith(1, expect.objectContaining({ measurement_type: "COUNT", quantity: null, formula: null })));
     expect(api.calculateMeasurement).not.toHaveBeenCalled();
@@ -208,7 +208,7 @@ describe("measurement integrity", () => {
       calculation_type: calculationType, count: "2", custom_quantity: "2", custom_formula: "2", unit: "EA",
     } } });
     render(<MeasurementCalculationForm measurement={row} onSaved={vi.fn()} />);
-    fireEvent.change(screen.getByLabelText(calculationType === "COUNT" ? "Count" : "Quantity"), { target: { value: "2.5" } });
+    fireEvent.change(screen.getByLabelText(calculationType === "COUNT" ? "개수" : "수량"), { target: { value: "2.5" } });
     expect((screen.getByRole("button", { name: "계산 저장" }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.submit(screen.getByRole("button", { name: "계산 저장" }).closest("form")!);
     expect(api.updateMeasurement).not.toHaveBeenCalled();
@@ -221,7 +221,7 @@ describe("measurement integrity", () => {
     vi.mocked(api.updateMeasurement).mockImplementation(async (_id, patch) => ({ ...row, quantity: patch.quantity === null ? null : row.quantity, formula: patch.formula === null ? null : row.formula }));
     vi.mocked(api.calculateMeasurement).mockRejectedValue(failure === "network" ? new TypeError("Failed to fetch") : new api.ApiError(400, "Calculation rejected"));
     render(<MeasurementCalculationForm measurement={row} onSaved={onSaved} />);
-    fireEvent.change(screen.getByLabelText("Count"), { target: { value: "3" } });
+    fireEvent.change(screen.getByLabelText("개수"), { target: { value: "3" } });
     fireEvent.click(screen.getByRole("button", { name: "계산 저장" }));
     await screen.findByRole("alert");
     expect(api.calculateMeasurement).toHaveBeenCalled();
@@ -235,7 +235,7 @@ describe("measurement integrity", () => {
     let resolve!: (value: Awaited<ReturnType<typeof api.getDimensionCandidates>>) => void;
     vi.mocked(api.getDimensionCandidates).mockReturnValue(new Promise((done) => { resolve = done; }));
     const view = await readyViewer();
-    fireEvent.click(screen.getByRole("button", { name: "Dimension region" }));
+    fireEvent.click(screen.getByRole("button", { name: "치수 영역 선택" }));
     fireEvent.click(view.canvas, { clientX: 0, clientY: 0 });
     fireEvent.click(view.canvas, { clientX: 100, clientY: 100 });
     view.rerender(<ManualMeasurementViewer {...viewerProps(1)} />);
@@ -247,7 +247,7 @@ describe("measurement integrity", () => {
     const responses: Array<(value: Awaited<ReturnType<typeof api.getDimensionCandidates>>) => void> = [];
     vi.mocked(api.getDimensionCandidates).mockImplementation(() => new Promise((resolve) => responses.push(resolve)));
     const view = await readyViewer();
-    fireEvent.click(screen.getByRole("button", { name: "Dimension region" }));
+    fireEvent.click(screen.getByRole("button", { name: "치수 영역 선택" }));
     fireEvent.click(view.canvas, { clientX: 0, clientY: 0 });
     fireEvent.click(view.canvas, { clientX: 100, clientY: 100 });
     fireEvent.click(view.canvas, { clientX: 200, clientY: 200 });
@@ -273,15 +273,15 @@ describe("measurement integrity", () => {
 
   it("blocks manual edits to confirmed rows and omits rejected targets", async () => {
     const view = await readyViewer([measurement({ status: "CONFIRMED" }), measurement({ id: 2, status: "REJECTED" })]);
-    expect(screen.getByLabelText("저장할 Measurement 후보").querySelectorAll("option")).toHaveLength(1);
+    expect(screen.getByLabelText("저장할 산출 후보").querySelectorAll("option")).toHaveLength(1);
     calibrate(view.canvas);
     fireEvent.click(screen.getByRole("button", { name: "사각형 면적" }));
     fireEvent.click(view.canvas, { clientX: 0, clientY: 0 });
     fireEvent.click(view.canvas, { clientX: 100, clientY: 100 });
-    expect((screen.getByRole("button", { name: "Measurement에 저장" }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole("button", { name: "산출에 저장" }) as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "재검토 시작" }));
     await waitFor(() => expect(api.updateMeasurement).toHaveBeenCalledWith(1, { status: "DRAFT" }));
-    await waitFor(() => expect((screen.getByRole("button", { name: "Measurement에 저장" }) as HTMLButtonElement).disabled).toBe(false));
+    await waitFor(() => expect((screen.getByRole("button", { name: "산출에 저장" }) as HTMLButtonElement).disabled).toBe(false));
   });
 
   it("uses newly selected dimension evidence after the server invalidates old inputs, retaining deductions", async () => {
@@ -294,27 +294,27 @@ describe("measurement integrity", () => {
       return saved;
     });
     const view = await readyViewer([row]);
-    fireEvent.click(screen.getByRole("button", { name: "Dimension region" }));
+    fireEvent.click(screen.getByRole("button", { name: "치수 영역 선택" }));
     fireEvent.click(view.canvas, { clientX: 0, clientY: 0 });
     fireEvent.click(view.canvas, { clientX: 100, clientY: 100 });
     fireEvent.click(await screen.findByRole("button", { name: /^Length$/ }));
-    fireEvent.click(screen.getByRole("button", { name: "Save evidence for calculation" }));
+    fireEvent.click(screen.getByRole("button", { name: "계산 근거 저장" }));
     await waitFor(() => expect(api.updateMeasurement).toHaveBeenCalled());
     expect(saved.source_sheets).toBe("AE601, AE101");
     view.unmount();
     render(<MeasurementCalculationForm measurement={saved} onSaved={vi.fn()} />);
-    expect((screen.getByLabelText("Length (m)") as HTMLInputElement).value).toBe("4.5");
-    expect((screen.getByLabelText("Deduction amount") as HTMLInputElement).value).toBe("1.89");
+    expect((screen.getByLabelText("길이 (m)") as HTMLInputElement).value).toBe("4.5");
+    expect((screen.getByLabelText("공제 수량") as HTMLInputElement).value).toBe("1.89");
   });
 
   it.each([
-    { type: "PERIMETER_LENGTH", input: { calculation_type: "PERIMETER_RECTANGLE", width: "4.2", height: "2.7" }, label: "Width (m)", value: "4.2" },
-    { type: "PARTITION_AREA", input: { calculation_type: "PARTITION_AREA", wall_length: "4.2", wall_height: "4.6", side_multiplier: "2" }, label: "Side Count", value: "2" },
-    { type: "COUNT", input: { calculation_type: "COUNT", count: "7" }, label: "Count", value: "7" },
-    { type: "FLOOR_AREA", input: { calculation_type: "CUSTOM", custom_formula: "3 + 4", custom_quantity: "7", unit: "m2" }, label: "Quantity", value: "7" },
+    { type: "PERIMETER_LENGTH", input: { calculation_type: "PERIMETER_RECTANGLE", width: "4.2", height: "2.7" }, label: "가로 (m)", value: "4.2" },
+    { type: "PARTITION_AREA", input: { calculation_type: "PARTITION_AREA", wall_length: "4.2", wall_height: "4.6", side_multiplier: "2" }, label: "산출 면 수", value: "2" },
+    { type: "COUNT", input: { calculation_type: "COUNT", count: "7" }, label: "개수", value: "7" },
+    { type: "FLOOR_AREA", input: { calculation_type: "CUSTOM", custom_formula: "3 + 4", custom_quantity: "7", unit: "m2" }, label: "수량", value: "7" },
   ] as const)("restores the saved $type calculation mode and inputs", ({ type, input, label, value }) => {
     render(<MeasurementCalculationForm measurement={measurement({ measurement_type: type, coordinates_json: { calculation_inputs: input } })} onSaved={vi.fn()} />);
-    expect((screen.getByLabelText("Calculation Type") as HTMLSelectElement).value).toBe(input.calculation_type);
+    expect((screen.getByLabelText("계산 방식") as HTMLSelectElement).value).toBe(input.calculation_type);
     expect((screen.getByLabelText(label) as HTMLInputElement).value).toBe(value);
   });
 
@@ -324,7 +324,6 @@ describe("measurement integrity", () => {
     vi.mocked(api.updateRoomFinish).mockResolvedValue({ ...room, status: "DRAFT" });
     render(<MemoryRouter initialEntries={["/room-finishes?drawingFileId=1"]}><RoomFinishesPage /></MemoryRouter>);
     await screen.findByRole("option", {name:/synthetic.pdf/});
-    fireEvent.click(screen.getByRole("button", { name: "Load" }));
     const confirmed = await screen.findByDisplayValue("103");
     const rejected = screen.getByDisplayValue("104");
     expect((confirmed as HTMLInputElement).disabled).toBe(true);
@@ -341,11 +340,10 @@ describe("measurement integrity", () => {
     vi.mocked(api.updateRoomFinish).mockResolvedValue({ ...room, status: "CONFIRMED" });
     render(<MemoryRouter initialEntries={["/room-finishes?drawingFileId=1"]}><RoomFinishesPage /></MemoryRouter>);
     await screen.findByRole("option", {name:/synthetic.pdf/});
-    fireEvent.click(screen.getByRole("button", { name: "Load" }));
     const row = (await screen.findByDisplayValue("103")).closest("tr")!;
     fireEvent.change(within(row).getByRole("combobox"), { target: { value: "CONFIRMED" } });
-    expect((within(row).getByRole("button", { name: "Save" }) as HTMLButtonElement).disabled).toBe(false);
-    fireEvent.click(within(row).getByRole("button", { name: "Save" }));
+    expect((within(row).getByRole("button", { name: "저장" }) as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.click(within(row).getByRole("button", { name: "저장" }));
     await waitFor(() => expect(api.updateRoomFinish).toHaveBeenCalledWith(1, expect.objectContaining({ status: "CONFIRMED" })));
     await screen.findByRole("button", { name: "재검토 시작" });
     expect((screen.getByDisplayValue("103") as HTMLInputElement).disabled).toBe(true);

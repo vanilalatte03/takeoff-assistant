@@ -11,7 +11,7 @@ import { ComparisonPanel } from "../components/ComparisonPanel";
 export function AssistPage() {
   const [fileId, select] = useDrawingFileSelection();
   return <><PageHeader title="산출 탐색 보조" description="관련 도면의 텍스트 근거를 찾아 원본 페이지에서 검토합니다." />
-    <section className="panel toolbar-form"><DrawingFilePicker value={fileId} onChange={select} /></section>
+    <section className="panel drawing-context"><DrawingFilePicker value={fileId} onChange={select} /></section>
     <AssistContent key={fileId} fileId={fileId} /></>;
 }
 
@@ -30,7 +30,7 @@ function AssistContent({ fileId }: { fileId: string }) {
     finally { setBusy(false); }
   }
   return <section className="panel">
-    <form onSubmit={submit} className="form-grid">
+    <form onSubmit={submit} className="assist-search-form">
       <label><span>산출 요청</span><input value={request} maxLength={500} placeholder="110호 ACST 천장 면적 찾아줘" onChange={e => setRequest(e.target.value)} /></label>
       <label><span>탐색 방식</span><select value={mode} onChange={e => setMode(e.target.value as "local" | "ai")}>
         <option value="local">로컬 규칙 검색 (AI 사용 없음)</option>
@@ -50,6 +50,6 @@ function AssistContent({ fileId }: { fileId: string }) {
       <details><summary>실행 기록</summary><pre style={{whiteSpace:"pre-wrap"}}>{JSON.stringify(result.trace, null, 2)}</pre></details>
       {result.status === "NEEDS_REVIEW" && <AssistDraftForm key={result.run_id} fileId={fileId} result={result} />}
     </>}
-    <ComparisonPanel fileId={fileId} run={result} />
+    <details className="secondary-disclosure"><summary>실사용 비교 기록</summary><ComparisonPanel fileId={fileId} run={result} /></details>
   </section>;
 }

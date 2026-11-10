@@ -20,7 +20,7 @@ export function DrawingDetailPage() {
   const navigate = useNavigate();
   const drawingFileId = parseRouteNumber(params.drawingFileId, "Drawing File ID", false);
   const pageIndex = parseRouteNumber(params.pageIndex, "Page index", true);
-  const [pageInput, setPageInput] = useState(String(pageIndex));
+  const [pageInput, setPageInput] = useState(String(pageIndex + 1));
   const [sheet, setSheet] = useState<DrawingSheetSearchResult | null>(null);
   const [imageError, setImageError] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -29,7 +29,7 @@ export function DrawingDetailPage() {
 
   useEffect(() => {
     let cancelled = false;
-    setPageInput(String(pageIndex));
+    setPageInput(String(pageIndex + 1));
     setSheet(null);
     setImageError(false);
     setError(null);
@@ -44,56 +44,32 @@ export function DrawingDetailPage() {
 
   function handlePageMove(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const nextPage = parseRouteNumber(pageInput, "Page index", true);
-    navigate(`/drawings/${drawingFileId}/pages/${nextPage}`);
+    try {
+      const nextPage = parseRouteNumber(pageInput, "PDF 쪽 번호", false) - 1;
+      navigate(`/drawings/${drawingFileId}/pages/${nextPage}`);
+    } catch (caught) { setError(caught); }
   }
 
   return (
-    <>
+    <div className="drawing-workspace">
       <PageHeader
-        title="도면 상세"
-        description="렌더링된 페이지 이미지 위에 canvas overlay를 올려 사용자가 직접 스케일과 측정선을 지정합니다."
+        title={sheet?.sheet_no ? `${sheet.sheet_no} · 도면 측정` : "도면 측정"}
+        description="기준 길이로 스케일을 맞춘 뒤 도면 위에서 길이와 면적을 측정하세요."
         actions={<Link to={`/drawings?drawingFileId=${drawingFileId}`}>목록으로</Link>}
       />
 
-      <section className="panel">
-        <form className="toolbar-form compact" onSubmit={handlePageMove}>
-          <label>
-            <span>Drawing File ID</span>
-            <input value={drawingFileId} readOnly />
-          </label>
-          <label>
-            <span>Page Index</span>
-            <input value={pageInput} inputMode="numeric" onChange={(event) => setPageInput(event.target.value)} />
-          </label>
-          <button type="submit">이동</button>
+      <section className="panel drawing-toolbar" aria-label="도면 정보와 페이지 이동">
+        <div className="drawing-sheet-info">
+          <strong>{sheet?.sheet_title ?? "도면 정보 불러오는 중…"}</strong>
+          <span>PDF {pageIndex + 1}쪽 · {sheet?.sheet_role ?? "역할 미확인"}
+            {sheet?.confidence != null ? ` · 분류 신뢰도 ${sheet.confidence.toFixed(2)}` : ""}</span>
+        </div>
+        <form className="page-jump" onSubmit={handlePageMove}>
+          <label><span>PDF 쪽 번호</span><input type="number" min="1" step="1" value={pageInput}
+            onChange={(event) => setPageInput(event.target.value)} /></label>
+          <button type="submit" className="button-secondary">이동</button>
         </form>
         <ErrorMessage error={error} />
-      </section>
-
-      <section className="panel metadata-panel">
-        <dl className="metadata-grid">
-          <div>
-            <dt>Page</dt>
-            <dd>{pageIndex}</dd>
-          </div>
-          <div>
-            <dt>Sheet No</dt>
-            <dd>{sheet?.sheet_no ?? "-"}</dd>
-          </div>
-          <div>
-            <dt>Sheet Title</dt>
-            <dd>{sheet?.sheet_title ?? "-"}</dd>
-          </div>
-          <div>
-            <dt>Role</dt>
-            <dd>{sheet?.sheet_role ?? "-"}</dd>
-          </div>
-          <div>
-            <dt>Confidence</dt>
-            <dd>{sheet?.confidence === null || sheet?.confidence === undefined ? "-" : sheet.confidence.toFixed(2)}</dd>
-          </div>
-        </dl>
       </section>
 
       {imageError ? (
@@ -109,6 +85,6 @@ export function DrawingDetailPage() {
           onImageError={() => setImageError(true)}
         />
       )}
-    </>
+    </div>
   );
 }

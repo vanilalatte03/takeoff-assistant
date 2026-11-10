@@ -7,7 +7,7 @@ import { ErrorMessage } from "./ApiState";
 
 const names:Record<string,string>={width:"가로",height:"세로",wall_length:"벽 길이",wall_height:"벽 높이",count:"개수"};
 
-export function ReviewEvidencePanel({measurement}:{measurement:Measurement}) {
+export function ReviewEvidencePanel({measurement, defaultOpen = true}:{measurement:Measurement; defaultOpen?:boolean}) {
   const [data,setData]=useState<ReviewEvidence|null>(null);
   const [selected,setSelected]=useState<number|null>(null);
   const [error,setError]=useState<unknown>(null);
@@ -19,7 +19,7 @@ export function ReviewEvidencePanel({measurement}:{measurement:Measurement}) {
   },[measurement.id,measurement.formula,measurement.quantity,measurement.unit,measurement.status,measurement.finish_code,measurement.source_sheets,measurement.coordinates_json,measurement.deductions_json]);
   useEffect(()=>{setImageError(false);},[selected]);
   const source=data?.sources.find(s=>s.sheet_id===selected);
-  return <details className="evidence-review" open>
+  return <details className="evidence-review" open={defaultOpen}>
     <summary>저장된 산출과 원본 대조</summary>
     <ErrorMessage error={error}/>
     {!data&&!error&&<p>저장 근거를 불러오는 중…</p>}
