@@ -2,6 +2,8 @@
 
 F01~F07 수정 후 재계산·페이지 전환·병합·확정 취소를 확인할 때는 `docs/INTEGRITY_FIXES.md`의 회귀 검증을 함께 수행합니다. 예전 DB에 소속이 불명확한 수동 행이 있으면 파일별 목록에서 제외될 수 있으며, 임의로 도면에 배정하지 않습니다.
 
+화면의 현재 한글 라벨, 자동 조회와 접기 영역은 [도면·산출 검수 화면](REVIEW_WORKSPACE.md)을 참고한다. 아래 데이터/API 필드명과 Excel 열 이름은 그대로 유지한다.
+
 ## 목적
 
 샘플 PDF를 기준으로 1차 MVP가 실제 마감 물량 산출 보조 도구로 사용할 수 있는지 확인한다.
@@ -166,9 +168,9 @@ Review sheet 확인 결과:
 
 ### 절차
 
-1. `Room Finish` 화면으로 이동한다.
-2. `Drawing File ID`를 입력한다.
-3. `후보 추출`을 누른다.
+1. **실별 마감표** 화면으로 이동한다.
+2. 프로젝트와 도면 PDF를 이름으로 선택해 기존 내역이 자동 조회되는지 확인한다.
+3. **마감표 후보 추출**을 누른다.
 4. 추출 결과를 확인한다.
 
 ### 기대 결과
@@ -215,7 +217,7 @@ Review sheet 확인 결과:
    - Height
 3. `저장`을 누른다.
 4. Room No, Room Name, finish code, status 필터를 각각 적용한다.
-5. 불필요한 미확정 RoomFinish를 하나 골라 `Reject`를 누른다.
+5. 불필요한 미확정 RoomFinish를 하나 골라 `거절`을 누른다.
 6. 연결된 `CONFIRMED` Measurement가 있는 RoomFinish reject가 차단되는지 확인한다.
 
 ### 기대 결과
@@ -243,9 +245,9 @@ Review sheet 확인 결과:
 
 ### 절차
 
-1. `Measurement` 화면으로 이동한다.
-2. `Drawing File ID`를 입력한다.
-3. `후보 생성`을 누른다.
+1. **산출 내역** 화면으로 이동한다.
+2. 프로젝트와 도면 PDF를 이름으로 선택해 기존 내역이 자동 조회되는지 확인한다.
+3. **산출 후보 생성**을 누른다.
 4. Measurement 목록을 확인한다.
 
 ### 기대 결과
@@ -270,12 +272,12 @@ Review sheet 확인 결과:
 
 ### 절차
 
-1. `Measurement` 화면에서 Drawing File ID를 입력하고 목록을 조회한다.
-2. Room Status 패널에서 방별 `Total`, `Qty`, `Confirmed`, `Review`, `Missing` 값을 확인한다.
-3. Room No, Category, Code, Type, Status 필터를 각각 적용한다.
-4. 미확정 Measurement 하나를 선택해 `Reject`를 누른다.
+1. **산출 내역** 화면에서 프로젝트와 PDF를 선택하고 자동 조회된 목록을 확인한다.
+2. **실별 검수 현황**을 열어 방별 전체·수량 있음·확정·검토 필요·수량 누락을 확인한다.
+3. **실 번호**, **검수 상태**와 **상세 필터** 안의 **분류**, **마감 코드**, **산출 종류**를 각각 적용한다.
+4. 미확정 산출의 **검토**를 누르고 오른쪽 패널의 **산출 거절**을 누른다.
 5. `CONFIRMED` Measurement reject가 차단되는지 확인한다.
-6. 같은 `room_no`, `category`, `finish_code`, `measurement_type`, `unit`인 두 후보를 골라 target/source로 병합한다.
+6. 같은 `room_no`, `category`, `finish_code`, `measurement_type`, `unit`인 후보의 **병합** 원본 체크박스를 선택한다. 나타난 **병합 대상**을 확인하고 **선택한 산출 병합**을 누른다.
 7. 다른 room 또는 다른 code 후보 병합이 실패하는지 확인한다.
 
 ### 기대 결과
@@ -301,7 +303,7 @@ Review sheet 확인 결과:
 ### 절차
 
 1. Measurement 목록에서 바닥 또는 천장 후보를 선택한다.
-2. Calculation Type을 `사각형 면적`으로 둔다.
+2. **계산 방식**을 `사각형 면적`으로 둔다.
 3. 아래 값을 입력한다.
 
 ```text
@@ -334,7 +336,7 @@ height: 2.7
 ### 절차
 
 1. Base 또는 둘레 후보를 선택한다.
-2. Calculation Type을 `사각형 둘레`로 선택한다.
+2. **계산 방식**을 `사각형 둘레`로 선택한다.
 3. 아래 값을 입력한다.
 
 ```text
@@ -367,7 +369,7 @@ deduction label: opening
 ### 절차
 
 1. Wall 후보를 선택한다.
-2. Calculation Type을 `벽체 면적`으로 선택한다.
+2. **계산 방식**을 `벽체 면적`으로 선택한다.
 3. 아래 값을 입력한다.
 
 ```text
@@ -401,7 +403,7 @@ deduction label: door
 ### 절차
 
 1. 파티션 또는 GWB 관련 후보를 선택한다.
-2. Calculation Type을 `파티션 면적`으로 선택한다.
+2. **계산 방식**을 `파티션 면적`으로 선택한다.
 3. 아래 값을 입력한다.
 
 ```text
@@ -432,12 +434,12 @@ side_count: 2
 
 ### 절차
 
-1. `Drawing Detail` 화면에서 평면도 페이지를 연다.
+1. **도면 측정** 화면에서 평면도 페이지를 연다.
 2. Measurement 후보 목록에 `COUNT` 타입 후보가 있는지 확인한다.
 3. 측정 모드를 `개수 클릭`으로 선택한다.
 4. 도면 위 대상 위치를 여러 번 클릭한다.
 5. 결과 수량이 클릭 수와 같은지 확인한다.
-6. `Measurement에 저장`을 누른다.
+6. `산출에 저장`을 누른다.
 
 ### 기대 결과
 
@@ -480,7 +482,7 @@ side_count: 2
 
 ### 절차
 
-1. `Measurement` 화면에서 `Excel 다운로드`를 누른다.
+1. **산출 내역** 화면에서 **Excel 내보내기**를 누른다.
 2. 다운로드된 `.xlsx` 파일을 연다.
 3. `Summary` 시트를 확인한다.
 4. `Details` 시트를 확인한다.
@@ -602,13 +604,23 @@ Memo
 - 선택 영역이나 후보 raw text가 저장 근거에 남지 않는다.
 - 기존 scale/line/rectangle/polygon/count click 측정이 깨진다.
 
-### Implemented verification notes
+### 구현 후 확인 절차
 
-- Use the Sheets page Room page candidates form to search by Room No or Room Name, then open the selected drawing page.
-- In Drawing Detail, select `Dimension region`, click two corners, review candidate raw text, normalized value, source sheet, warnings, and fallback behavior.
-- Map candidates to Width, Height, Length, Wall height, or Side count, then save the dimension evidence to the selected Measurement.
-- In Measurement Review, load the drawing file and select that Measurement; calculation inputs should prefill from `coordinates_json.dimension_assist.selected_candidates`.
-- Saving the calculation must not mark the Measurement `CONFIRMED` unless the existing confirm-after-save checkbox is explicitly selected.
+- 도면 목록의 Room page candidates에서 실 번호·이름으로 검색하고 관련 도면을 연다.
+- **도면 측정**에서 **치수 영역 선택**으로 두 모서리를 지정하고 원문·정규화값·출처·경고와 후보가 없을 때의 안내를 확인한다.
+- 후보를 Width, Height, Length, Wall height, Side count에 배정한 뒤 **계산 근거 저장**을 누른다.
+- **산출 내역**에서 PDF를 선택하고 자동 조회된 해당 행의 **검토**를 누른다. 계산 입력이 `coordinates_json.dimension_assist.selected_candidates`에서 채워지는지 확인한다.
+- 확정 체크박스를 명시적으로 선택하지 않았다면 계산 저장 후에도 `CONFIRMED`가 아니어야 한다.
+
+## 검수 작업 화면 smoke
+
+1. PDF 선택만으로 마감표와 산출 내역이 조회되며 후보 생성·저장 API가 실행되지 않는지 확인한다.
+2. 다른 PDF로 전환하면 이전 결과가 사라지고 늦게 도착한 이전 응답이 표시되지 않는지 확인한다. 조회 실패 후 **다시 불러오기**, 빈 내역, 필터 결과 없음을 각각 구분한다.
+3. **산출 목록**이 계산 패널보다 먼저 나오고, 다른 행의 **검토**를 누르면 선택 번호와 패널 내용이 바뀌며 패널 스크롤이 처음으로 돌아가는지 확인한다.
+4. 기본 접기 영역인 **실별 검수 현황**, **상세 필터**, **실별 마감 추가**, **실사용 비교 기록**을 열어 기존 기능을 사용할 수 있는지 확인한다.
+5. 도면 측정의 **PDF 쪽 번호**에 `1`을 입력하면 URL의 `/pages/0`과 첫 PDF 페이지가 열리는지 확인한다.
+6. 데스크톱의 목록·검토 패널 나란히 배치와 1100px 이하의 세로 배치를 확인한다. 좁은 화면의 가로 스크롤은 표 내부로 제한되어야 한다.
+7. 확정·거절 행의 병합 원본 선택·거절·편집 보호와 명시적인 **재검토 시작**을 확인한다.
 
 ## AI 보조 PRD 후속 smoke
 
@@ -616,9 +628,9 @@ Memo
 2. 근거 페이지와 원문을 확인하고 산출 행을 선택한다. 치수마다 출처 페이지를 먼저 선택한 뒤 후보 또는 수동값·단위·메모를 입력한다.
 3. 파티션은 면 수를 입력하고 공제를 확인한다. 저장 결과가 DRAFT이며 식·수량·단위·출처가 Excel에 남는지 확인한다.
 4. 사용자가 CONFIRMED로 바꾼 행의 초안 재저장을 시도해 차단을 확인한다.
-5. 텍스트 추출이 부족한 영역은 도면 상세 Dimension region에서 선택한다. 로컬 PNG 미리보기와 권한을 확인한 뒤 선택 영역만 판독한다. 키가 없으면 실제 모델 검증 미실시로 기록한다.
+5. 텍스트 추출이 부족한 영역은 도면 측정의 **치수 영역 선택**에서 선택한다. 로컬 PNG 미리보기와 권한을 확인한 뒤 선택 영역만 판독한다. 키가 없으면 실제 모델 검증 미실시로 기록한다.
 6. 원본이 바뀌거나 영역이 미리보기와 다르면 재확인을 요구해야 한다. 판독 후보는 미확정이며 숫자·단위·코드를 원본과 대조한다.
-7. 실사용 비교 기록에서 같은 과제명으로 수동/보조 작업의 전체 시간·수정·개입·오류·검수 결과를 저장한다. API 도구 테스트 시간을 실무 작업시간으로 기재하지 않는다.
+7. 산출 탐색 보조의 **실사용 비교 기록**을 열고 같은 과제명으로 수동/보조 작업의 전체 시간·수정·개입·오류·검수 결과를 저장한다. API 도구 테스트 시간을 실무 작업시간으로 기재하지 않는다.
 8. 초안 저장 후 또는 산출 수정 폼에서 원본 대조 패널을 연다. 4200mm 입력이 실제 저장된 4.2m 변환값으로 표시되는지 확인하고 출처 버튼으로 해당 PDF 페이지를 나란히 본다. 기록 없는 과거 행에는 변환값을 만들어 표시하지 않아야 한다.
 9. 계산 결과를 수동 수정하거나 원본이 바뀐 경우 이전 입력 기록과 현재 결과/원본의 차이를 경고해야 한다. 대조 화면을 열기만 해서는 산출값·검수 상태가 바뀌지 않아야 한다.
 
