@@ -1,10 +1,10 @@
 import type { ReviewStatus } from "../types/api";
 
-const statusLabels: Record<ReviewStatus, string> = {
-  DRAFT: "Draft",
-  NEEDS_REVIEW: "Needs review",
-  CONFIRMED: "Confirmed",
-  REJECTED: "Rejected",
+export const statusLabels: Record<ReviewStatus, string> = {
+  DRAFT: "초안",
+  NEEDS_REVIEW: "검토 필요",
+  CONFIRMED: "확정",
+  REJECTED: "거절",
 };
 
 export function StatusBadge({ status }: { status: ReviewStatus }) {

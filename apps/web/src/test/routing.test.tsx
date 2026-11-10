@@ -11,6 +11,7 @@ vi.mock("../api/client", async (importOriginal) => ({
   listProjectDrawingFiles: vi.fn(),
   searchDrawingSheets: vi.fn(),
   listMeasurements: vi.fn(),
+  getDrawingFileRoomStatus: vi.fn(),
 }));
 
 beforeEach(() => {
@@ -20,6 +21,7 @@ beforeEach(() => {
   vi.mocked(api.listProjectDrawingFiles).mockImplementation(async id=>[{id:id===1?42:84,project_id:id,original_filename:`synthetic-${id}.pdf`,stored_path:"synthetic.pdf",page_count:3,created_at:"2026-11-05"}]);
   vi.mocked(api.searchDrawingSheets).mockResolvedValue({ drawing_file_id: 42, results: [] });
   vi.mocked(api.listMeasurements).mockResolvedValue([]);
+  vi.mocked(api.getDrawingFileRoomStatus).mockResolvedValue({drawing_file_id:42,rooms:[]});
 });
 
 function HistoryControls() {
@@ -46,7 +48,6 @@ describe("application routing", () => {
     await screen.findByRole("option", {name:/synthetic-2.pdf/});
     expect((screen.getByLabelText("도면 PDF") as HTMLSelectElement).value).toBe("84");
     expect((screen.getByLabelText("프로젝트") as HTMLSelectElement).value).toBe("2");
-    fireEvent.click(screen.getByRole("button", {name:"Load"}));
     await waitFor(()=>expect(api.listMeasurements).toHaveBeenCalledWith(84));
     fireEvent.click(screen.getByRole("button", {name:"뒤로"}));
     await screen.findByRole("option", {name:/synthetic-1.pdf/});
@@ -64,8 +65,8 @@ describe("application routing", () => {
     openApp("/upload");
     for (const [label, path, title] of [
       ["도면 목록/검색", "/drawings", "도면 목록/검색"],
-      ["Room Finish", "/room-finishes", "Room Finish Review"],
-      ["Measurement", "/measurements", "Measurement Review"],
+      ["실별 마감표", "/room-finishes", "실별 마감표 검수"],
+      ["산출 내역", "/measurements", "산출 내역 검수"],
     ]) {
       fireEvent.click(screen.getByRole("link", { name: label }));
       expect(await screen.findByRole("heading", { name: title, level: 1 })).toBeTruthy();
@@ -73,9 +74,9 @@ describe("application routing", () => {
       expect(screen.getByRole("link", { name: label }).getAttribute("aria-current")).toBe("page");
     }
     fireEvent.click(screen.getByRole("button", { name: "뒤로" }));
-    expect(await screen.findByRole("heading", { name: "Room Finish Review", level: 1 })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "실별 마감표 검수", level: 1 })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "앞으로" }));
-    expect(await screen.findByRole("heading", { name: "Measurement Review", level: 1 })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "산출 내역 검수", level: 1 })).toBeTruthy();
     fireEvent.click(screen.getByRole("link", { name: "PDF 업로드" }));
     expect(screen.getByLabelText("현재 경로").textContent).toBe("/upload");
     await waitFor(() => expect(api.listProjects).toHaveBeenCalled());
@@ -84,9 +85,9 @@ describe("application routing", () => {
   it("preserves drawing and page parameters through page changes and the list link", async () => {
     openApp("/drawings/42/pages/0");
     await waitFor(() => expect(api.searchDrawingSheets).toHaveBeenCalledWith(42, {}));
-    expect((screen.getByLabelText("Page Index") as HTMLInputElement).value).toBe("0");
+    expect((screen.getByLabelText("PDF 쪽 번호") as HTMLInputElement).value).toBe("1");
     expect(screen.getByRole("link", { name: "도면 목록/검색" }).getAttribute("aria-current")).toBe("page");
-    fireEvent.change(screen.getByLabelText("Page Index"), { target: { value: "3" } });
+    fireEvent.change(screen.getByLabelText("PDF 쪽 번호"), { target: { value: "4" } });
     fireEvent.click(screen.getByRole("button", { name: "이동" }));
     expect(screen.getByLabelText("현재 경로").textContent).toBe("/drawings/42/pages/3");
     expect(screen.getByRole("img").getAttribute("src")).toContain("/drawing-files/42/pages/3/image");

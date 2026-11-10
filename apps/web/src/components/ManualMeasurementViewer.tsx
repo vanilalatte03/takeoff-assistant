@@ -53,7 +53,7 @@ const modeLabels: Record<MeasurementMode, string> = {
   RECTANGLE_AREA: "사각형 면적",
   POLYGON_AREA: "다각형 면적",
   COUNT_CLICK: "개수 클릭",
-  DIMENSION_REGION: "Dimension region",
+  DIMENSION_REGION: "치수 영역 선택",
 };
 
 const measurementModes: MeasurementMode[] = ["SCALE", "LINE_LENGTH", "RECTANGLE_AREA", "POLYGON_AREA", "COUNT_CLICK", "DIMENSION_REGION"];
@@ -1006,7 +1006,7 @@ export function ManualMeasurementViewer({
         </div>
 
         <label>
-          <span>저장할 Measurement 후보</span>
+          <span>저장할 산출 후보</span>
           <select
             value={selectedMeasurementId}
             onChange={(event) => setSelectedMeasurementId(event.target.value)}
@@ -1029,7 +1029,7 @@ export function ManualMeasurementViewer({
           <div className="dimension-assist-panel">
             {dimensionRegion && <VisionPanel key={`${drawingFileId}:${pageIndex}:${JSON.stringify(dimensionRegion)}`} fileId={drawingFileId} pageIndex={pageIndex} region={dimensionRegion} />}
             <div className="section-heading compact-heading">
-              <h3>Dimension candidates</h3>
+              <h3>치수 후보</h3>
               <span className="count-label">{dimensionCandidates.length}</span>
             </div>
             {dimensionRegion ? (
@@ -1084,7 +1084,7 @@ export function ManualMeasurementViewer({
               ))}
             </div>
             <button type="button" onClick={saveDimensionAssistEvidence} disabled={isSaving || isReadOnly || isLoadingDimensions || !selectedMeasurement || !dimensionRegion}>
-              {isSaving ? "Saving..." : "Save evidence for calculation"}
+              {isSaving ? "Saving..." : "계산 근거 저장"}
             </button>
           </div>
         ) : null}
@@ -1094,7 +1094,7 @@ export function ManualMeasurementViewer({
         ) : null}
 
         <button type="button" onClick={saveMeasurement} disabled={isSaving || isReadOnly || !result || !selectedMeasurement}>
-          {isSaving ? "저장 중" : "Measurement에 저장"}
+          {isSaving ? "저장 중" : "산출에 저장"}
         </button>
 
         <ErrorMessage error={error} />

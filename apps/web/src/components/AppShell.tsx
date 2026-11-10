@@ -5,8 +5,8 @@ const navItems = [
   { to: "/assist", label: "산출 탐색 보조" },
   { to: "/upload", label: "PDF 업로드" },
   { to: "/drawings", label: "도면 목록/검색" },
-  { to: "/room-finishes", label: "Room Finish" },
-  { to: "/measurements", label: "Measurement" },
+  { to: "/room-finishes", label: "실별 마감표" },
+  { to: "/measurements", label: "산출 내역" },
 ];
 
 export function AppShell() {
