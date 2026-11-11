@@ -6,12 +6,12 @@ import { ErrorMessage } from "./ApiState";
 
 const selectionKey = "takeoff.drawingFileId";
 
-export function useDrawingFileSelection(): [string, (value: string) => void] {
+export function useDrawingFileSelection(): [string, (value: string, resetSearch?: boolean) => void] {
   const [params, setParams] = useSearchParams();
   const value = params.get("drawingFileId") ?? sessionStorage.getItem(selectionKey) ?? "";
-  function select(next: string) {
+  function select(next: string, resetSearch = false) {
     sessionStorage.setItem(selectionKey, next);
-    const updated = new URLSearchParams(params);
+    const updated = resetSearch ? new URLSearchParams() : new URLSearchParams(params);
     if (next) updated.set("drawingFileId", next);
     else updated.delete("drawingFileId");
     setParams(updated, { replace: true });
