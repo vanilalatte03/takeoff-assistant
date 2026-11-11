@@ -1,93 +1,100 @@
 import { DrawingFilePicker, useDrawingFileSelection } from "../components/DrawingFilePicker";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { findRoomPageCandidates, searchDrawingSheets } from "../api/client";
 import { EmptyState, ErrorMessage } from "../components/ApiState";
 import { PageHeader } from "../components/PageHeader";
+import { drawingSearchParams, readDrawingSearch, sheetRoles } from "../drawingSearch";
 import type { DrawingSheetRole, DrawingSheetSearchResult, RoomPageCandidate } from "../types/api";
 
-const roleOptions: Array<DrawingSheetRole | ""> = [
-  "",
-  "FINISH_SCHEDULE",
-  "FLOOR_PLAN",
-  "ENLARGED_FLOOR_PLAN",
-  "CEILING_PLAN",
-  "PARTITION_PLAN",
-  "PARTITION_DETAIL",
-  "DOOR_SCHEDULE",
-  "WINDOW_SCHEDULE",
-  "DETAIL",
-  "UNKNOWN",
-];
-
-function parseDrawingFileId(value: string) {
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
-    throw new Error("Drawing File ID는 1 이상의 정수여야 합니다.");
-  }
-  return parsed;
-}
-
 export function SheetsPage() {
-  const [drawingFileId, setDrawingFileId] = useDrawingFileSelection();
-  return <><section className="panel drawing-context"><DrawingFilePicker value={drawingFileId} onChange={setDrawingFileId} /></section>
+  const [drawingFileId, selectDrawingFile] = useDrawingFileSelection();
+  return <><section className="panel drawing-context"><DrawingFilePicker value={drawingFileId} onChange={(next) => selectDrawingFile(next, true)} /></section>
     <SheetsPageContent key={drawingFileId} drawingFileId={drawingFileId} /></>;
 }
 
 function SheetsPageContent({ drawingFileId }: { drawingFileId: string }) {
-  const [, setSearchParams] = useSearchParams();
-  const [sheetNo, setSheetNo] = useState("");
-  const [keyword, setKeyword] = useState("");
-  const [sheetRole, setSheetRole] = useState<DrawingSheetRole | "">("");
-  const [roomQuery, setRoomQuery] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const applied = readDrawingSearch(searchParams);
+  const [sheetNo, setSheetNo] = useState(applied.sheetNo);
+  const [keyword, setKeyword] = useState(applied.keyword);
+  const [sheetRole, setSheetRole] = useState<DrawingSheetRole | "">(applied.sheetRole);
+  const [roomQuery, setRoomQuery] = useState(applied.roomQuery);
   const [results, setResults] = useState<DrawingSheetSearchResult[]>([]);
   const [roomCandidates, setRoomCandidates] = useState<RoomPageCandidate[]>([]);
   const [roomWarnings, setRoomWarnings] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(!!drawingFileId);
   const [isRoomLoading, setIsRoomLoading] = useState(false);
   const [error, setError] = useState<unknown>(null);
+  const [roomError, setRoomError] = useState<unknown>(null);
+  const [searchRevision, retrySearch] = useState(0);
+  const [roomRevision, retryRoomSearch] = useState(0);
 
   const resolvedDrawingFileId = useMemo(() => {
     const parsed = Number(drawingFileId);
     return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
   }, [drawingFileId]);
 
-  async function handleSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-    setIsLoading(true);
+  useEffect(() => {
+    setSheetNo(applied.sheetNo);
+    setKeyword(applied.keyword);
+    setSheetRole(applied.sheetRole);
+  }, [applied.sheetNo, applied.keyword, applied.sheetRole]);
 
-    try {
-      const id = parseDrawingFileId(drawingFileId);
-      const response = await searchDrawingSheets(id, { sheetNo, keyword, sheetRole });
-      setResults(response.results);
-      setSearchParams({ drawingFileId: String(id) });
-    } catch (caught) {
-      setError(caught);
-    } finally {
-      setIsLoading(false);
-    }
-  }
+  useEffect(() => { setRoomQuery(applied.roomQuery); }, [applied.roomQuery]);
 
-  async function handleRoomSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  useEffect(() => {
+    let active = true;
+    setResults([]);
     setError(null);
-    setIsRoomLoading(true);
+    setIsLoading(!!resolvedDrawingFileId);
+    if (!resolvedDrawingFileId) return;
+    void searchDrawingSheets(resolvedDrawingFileId, {
+      sheetNo: applied.sheetNo, keyword: applied.keyword, sheetRole: applied.sheetRole,
+    }).then((response) => { if (active) setResults(response.results); })
+      .catch((caught) => { if (active) setError(caught); })
+      .finally(() => { if (active) setIsLoading(false); });
+    return () => { active = false; };
+  }, [resolvedDrawingFileId, applied.sheetNo, applied.keyword, applied.sheetRole, searchRevision]);
+
+  useEffect(() => {
+    let active = true;
+    setRoomCandidates([]);
     setRoomWarnings([]);
+    setRoomError(null);
+    setIsRoomLoading(!!resolvedDrawingFileId && !!applied.roomQuery);
+    if (!resolvedDrawingFileId || !applied.roomQuery) return;
+    void findRoomPageCandidates(resolvedDrawingFileId, applied.roomQuery)
+      .then((response) => {
+        if (!active) return;
+        setRoomCandidates(response.candidates);
+        setRoomWarnings(response.warnings);
+      })
+      .catch((caught) => { if (active) setRoomError(caught); })
+      .finally(() => { if (active) setIsRoomLoading(false); });
+    return () => { active = false; };
+  }, [resolvedDrawingFileId, applied.roomQuery, roomRevision]);
 
-    try {
-      const id = parseDrawingFileId(drawingFileId);
-      const response = await findRoomPageCandidates(id, roomQuery);
-      setRoomCandidates(response.candidates);
-      setRoomWarnings(response.warnings);
-      setSearchParams({ drawingFileId: String(id) });
-    } catch (caught) {
-      setError(caught);
-    } finally {
-      setIsRoomLoading(false);
-    }
+  function handleSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!resolvedDrawingFileId) return;
+    const next = drawingSearchParams(drawingFileId, { ...applied, sheetNo, keyword, sheetRole });
+    const unchanged = next.toString() === drawingSearchParams(drawingFileId, applied).toString();
+    if (unchanged) retrySearch((revision) => revision + 1);
+    setSearchParams(next, { replace: unchanged });
   }
+
+  function handleRoomSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!resolvedDrawingFileId) return;
+    const next = drawingSearchParams(drawingFileId, { ...applied, roomQuery });
+    const unchanged = next.toString() === drawingSearchParams(drawingFileId, applied).toString();
+    if (unchanged) retryRoomSearch((revision) => revision + 1);
+    setSearchParams(next, { replace: unchanged });
+  }
+
+  const contextSearch = drawingSearchParams(drawingFileId, applied).toString();
 
   return (
     <>
@@ -104,7 +111,7 @@ function SheetsPageContent({ drawingFileId }: { drawingFileId: string }) {
             <span>Room No / Name</span>
             <input value={roomQuery} placeholder="119 or OFFICE" onChange={(event) => setRoomQuery(event.target.value)} />
           </label>
-          <button type="submit" disabled={isRoomLoading || !roomQuery.trim()}>
+          <button type="submit" disabled={isRoomLoading || !resolvedDrawingFileId || !roomQuery.trim()}>
             {isRoomLoading ? "Finding..." : "Find room"}
           </button>
         </form>
@@ -148,7 +155,7 @@ function SheetsPageContent({ drawingFileId }: { drawingFileId: string }) {
                     <td>{candidate.evidence.join("; ")}</td>
                     <td>
                       {resolvedDrawingFileId ? (
-                        <Link to={`/drawings/${resolvedDrawingFileId}/pages/${candidate.page_index}`}>Open</Link>
+                        <Link to={`/drawings/${resolvedDrawingFileId}/pages/${candidate.page_index}?${contextSearch}`}>Open</Link>
                       ) : (
                         "-"
                       )}
@@ -159,7 +166,10 @@ function SheetsPageContent({ drawingFileId }: { drawingFileId: string }) {
             </table>
           </div>
         ) : null}
-        <ErrorMessage error={error} />
+        <ErrorMessage error={roomError} />
+        {applied.roomQuery && !isRoomLoading && !roomError && !roomCandidates.length ? (
+          <EmptyState>조건에 맞는 실 도면 후보가 없습니다.</EmptyState>
+        ) : null}
       </section>
 
       <section className="panel">
@@ -176,14 +186,14 @@ function SheetsPageContent({ drawingFileId }: { drawingFileId: string }) {
           <label>
             <span>역할</span>
             <select value={sheetRole} onChange={(event) => setSheetRole(event.target.value as DrawingSheetRole | "")}>
-              {roleOptions.map((role) => (
+              {sheetRoles.map((role) => (
                 <option key={role || "ALL"} value={role}>
                   {role || "전체"}
                 </option>
               ))}
             </select>
           </label>
-          <button type="submit" disabled={isLoading}>
+          <button type="submit" disabled={isLoading || !resolvedDrawingFileId}>
             {isLoading ? "검색 중" : "검색"}
           </button>
         </form>
@@ -221,7 +231,7 @@ function SheetsPageContent({ drawingFileId }: { drawingFileId: string }) {
                     <td>{sheet.confidence === null ? "-" : sheet.confidence.toFixed(2)}</td>
                     <td>
                       {resolvedDrawingFileId ? (
-                        <Link to={`/drawings/${resolvedDrawingFileId}/pages/${sheet.page_index}`}>열기</Link>
+                        <Link to={`/drawings/${resolvedDrawingFileId}/pages/${sheet.page_index}?${contextSearch}`}>열기</Link>
                       ) : (
                         "-"
                       )}
@@ -232,7 +242,7 @@ function SheetsPageContent({ drawingFileId }: { drawingFileId: string }) {
             </table>
           </div>
         ) : (
-          <EmptyState>검색 결과가 없습니다.</EmptyState>
+          <EmptyState>{!resolvedDrawingFileId ? "프로젝트와 도면 PDF를 선택하세요." : isLoading ? "도면 목록을 불러오는 중…" : error ? "도면 목록을 불러오지 못했습니다. 검색을 눌러 다시 시도하세요." : "검색 결과가 없습니다."}</EmptyState>
         )}
       </section>
     </>

@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
+import { drawingSearchParams, readDrawingSearch } from "../drawingSearch";
 import { pageImageUrl, searchDrawingSheets } from "../api/client";
 import { EmptyState, ErrorMessage } from "../components/ApiState";
 import { ManualMeasurementViewer } from "../components/ManualMeasurementViewer";
@@ -18,8 +19,11 @@ function parseRouteNumber(value: string | undefined, label: string, allowZero: b
 export function DrawingDetailPage() {
   const params = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const drawingFileId = parseRouteNumber(params.drawingFileId, "Drawing File ID", false);
   const pageIndex = parseRouteNumber(params.pageIndex, "Page index", true);
+  const listSearch = drawingSearchParams(drawingFileId, readDrawingSearch(searchParams)).toString();
+  const detailSearch = searchParams.size ? `?${listSearch}` : "";
   const [pageInput, setPageInput] = useState(String(pageIndex + 1));
   const [sheet, setSheet] = useState<DrawingSheetSearchResult | null>(null);
   const [imageError, setImageError] = useState(false);
@@ -46,7 +50,7 @@ export function DrawingDetailPage() {
     event.preventDefault();
     try {
       const nextPage = parseRouteNumber(pageInput, "PDF 쪽 번호", false) - 1;
-      navigate(`/drawings/${drawingFileId}/pages/${nextPage}`);
+      navigate(`/drawings/${drawingFileId}/pages/${nextPage}${detailSearch}`);
     } catch (caught) { setError(caught); }
   }
 
@@ -55,7 +59,7 @@ export function DrawingDetailPage() {
       <PageHeader
         title={sheet?.sheet_no ? `${sheet.sheet_no} · 도면 측정` : "도면 측정"}
         description="기준 길이로 스케일을 맞춘 뒤 도면 위에서 길이와 면적을 측정하세요."
-        actions={<Link to={`/drawings?drawingFileId=${drawingFileId}`}>목록으로</Link>}
+        actions={<Link to={`/drawings?${listSearch}`}>목록으로</Link>}
       />
 
       <section className="panel drawing-toolbar" aria-label="도면 정보와 페이지 이동">
