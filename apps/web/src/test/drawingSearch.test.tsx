@@ -23,7 +23,7 @@ beforeEach(() => {
   vi.mocked(api.listProjectDrawingFiles).mockImplementation(async id => [{
     id, project_id: id, original_filename: `synthetic-${id}.pdf`, stored_path: "demo.pdf", page_count: 3, created_at: "2026-11-11",
   }]);
-  vi.mocked(api.searchDrawingSheets).mockResolvedValue(response);
+  vi.mocked(api.searchDrawingSheets).mockImplementation(async (id, filters) => Object.keys(filters).length ? response : { drawing_file_id: id, results: [sheet, { ...sheet, page_index: 1, sheet_no: "SYN102" }] });
   vi.mocked(api.listMeasurements).mockResolvedValue([]);
   vi.mocked(api.findRoomPageCandidates).mockResolvedValue({ drawing_file_id: 1, room_query: "101", warnings: [],
     candidates: [{ ...sheet, room_no: "101", room_name: "DEMO", evidence: ["synthetic evidence"] }],
@@ -49,6 +49,7 @@ it("restores applied filters and results through detail, page changes, and the l
   fireEvent.click(screen.getByRole("button", { name: "검색" }));
   await waitFor(() => expect(api.searchDrawingSheets).toHaveBeenLastCalledWith(1, {sheetNo:"SYN101", keyword:"DEMO & office", sheetRole:"FLOOR_PLAN"}));
   fireEvent.click(await screen.findByRole("link", { name: "열기" }));
+  await waitFor(() => expect((screen.getByRole("button", { name: "이동" }) as HTMLButtonElement).disabled).toBe(false));
   fireEvent.change(screen.getByLabelText("PDF 쪽 번호"), { target: { value: "2" } });
   fireEvent.click(screen.getByRole("button", { name: "이동" }));
   expect(screen.getByLabelText("URL").textContent).toContain("/pages/1?");

@@ -25,32 +25,59 @@ export function DrawingDetailPage() {
   const listSearch = drawingSearchParams(drawingFileId, readDrawingSearch(searchParams)).toString();
   const detailSearch = searchParams.size ? `?${listSearch}` : "";
   const [pageInput, setPageInput] = useState(String(pageIndex + 1));
-  const [sheet, setSheet] = useState<DrawingSheetSearchResult | null>(null);
+  const [sheets, setSheets] = useState<DrawingSheetSearchResult[]>([]);
+  const [loadedFileId, setLoadedFileId] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadRevision, retryLoad] = useState(0);
+  const [loadError, setLoadError] = useState<unknown>(null);
   const [imageError, setImageError] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
   const imageUrl = useMemo(() => pageImageUrl(drawingFileId, pageIndex), [drawingFileId, pageIndex]);
+  const currentSheets = loadedFileId === drawingFileId ? sheets : [];
+  const sheet = currentSheets.find((item) => item.page_index === pageIndex);
+  const availablePages = [...new Set(currentSheets.map((item) => item.page_index))].sort((a, b) => a - b);
+  const previousPage = [...availablePages].reverse().find((index) => index < pageIndex);
+  const nextPage = availablePages.find((index) => index > pageIndex);
+  const canNavigate = !isLoading && !loadError && availablePages.length > 0;
+
+  useEffect(() => {
+    setPageInput(String(pageIndex + 1));
+    setImageError(false);
+    setError(null);
+  }, [drawingFileId, pageIndex]);
 
   useEffect(() => {
     let cancelled = false;
-    setPageInput(String(pageIndex + 1));
-    setSheet(null);
-    setImageError(false);
-    setError(null);
+    setSheets([]);
+    setLoadedFileId(null);
+    setIsLoading(true);
+    setLoadError(null);
     searchDrawingSheets(drawingFileId, {})
       .then((response) => {
         if (cancelled) return;
-        setSheet(response.results.find((result) => result.page_index === pageIndex) ?? null);
+        setSheets(response.results);
+        setLoadedFileId(drawingFileId);
       })
-      .catch((caught) => { if (!cancelled) setError(caught); });
+      .catch((caught) => { if (!cancelled) setLoadError(caught); })
+      .finally(() => { if (!cancelled) setIsLoading(false); });
     return () => { cancelled = true; };
-  }, [drawingFileId, pageIndex]);
+  }, [drawingFileId, loadRevision]);
+
+  function moveToPage(index: number) {
+    setError(null);
+    navigate(`/drawings/${drawingFileId}/pages/${index}${detailSearch}`);
+  }
 
   function handlePageMove(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canNavigate) return;
     try {
       const nextPage = parseRouteNumber(pageInput, "PDF 쪽 번호", false) - 1;
-      navigate(`/drawings/${drawingFileId}/pages/${nextPage}${detailSearch}`);
+      if (!availablePages.includes(nextPage)) {
+        throw new Error("해당 쪽은 처리된 도면 목록에 없습니다. 도면 목록에서 처리 상태를 확인하세요.");
+      }
+      moveToPage(nextPage);
     } catch (caught) { setError(caught); }
   }
 
@@ -64,15 +91,25 @@ export function DrawingDetailPage() {
 
       <section className="panel drawing-toolbar" aria-label="도면 정보와 페이지 이동">
         <div className="drawing-sheet-info">
-          <strong>{sheet?.sheet_title ?? "도면 정보 불러오는 중…"}</strong>
+          <strong>{sheet?.sheet_title ?? (isLoading ? "도면 정보 불러오는 중…" : "도면 정보 없음")}</strong>
           <span>PDF {pageIndex + 1}쪽 · {sheet?.sheet_role ?? "역할 미확인"}
             {sheet?.confidence != null ? ` · 분류 신뢰도 ${sheet.confidence.toFixed(2)}` : ""}</span>
         </div>
-        <form className="page-jump" onSubmit={handlePageMove}>
+        <div className="page-navigation" aria-label="PDF 쪽 이동">
+          <button type="button" className="button-secondary" disabled={!canNavigate || previousPage === undefined}
+            onClick={() => { if (previousPage !== undefined) moveToPage(previousPage); }}>이전 쪽</button>
+          <form className="page-jump" onSubmit={handlePageMove}>
           <label><span>PDF 쪽 번호</span><input type="number" min="1" step="1" value={pageInput}
-            onChange={(event) => setPageInput(event.target.value)} /></label>
-          <button type="submit" className="button-secondary">이동</button>
-        </form>
+            disabled={!canNavigate} onChange={(event) => setPageInput(event.target.value)} /></label>
+          <button type="submit" className="button-secondary" disabled={!canNavigate}>이동</button>
+          </form>
+          <button type="button" className="button-secondary" disabled={!canNavigate || nextPage === undefined}
+            onClick={() => { if (nextPage !== undefined) moveToPage(nextPage); }}>다음 쪽</button>
+        </div>
+        {!isLoading && !loadError && !availablePages.length && <p className="page-navigation-note">처리된 도면이 없습니다. 도면 목록에서 페이지 처리를 확인하세요.</p>}
+        {!isLoading && !loadError && availablePages.length > 0 && !sheet && <p className="page-navigation-note">현재 쪽은 처리된 도면 목록에 없습니다. 이전·다음 쪽이나 목록에서 도면을 선택하세요.</p>}
+        <ErrorMessage error={loadError} />
+        {loadError ? <button type="button" className="button-secondary" onClick={() => retryLoad((revision) => revision + 1)}>도면 정보 다시 불러오기</button> : null}
         <ErrorMessage error={error} />
       </section>
 

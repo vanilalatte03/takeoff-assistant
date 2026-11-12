@@ -19,7 +19,7 @@ beforeEach(() => {
   sessionStorage.clear();
   vi.mocked(api.listProjects).mockResolvedValue([{id:1,name:"First",description:null,created_at:"2026-11-05"},{id:2,name:"Second",description:null,created_at:"2026-11-05"}]);
   vi.mocked(api.listProjectDrawingFiles).mockImplementation(async id=>[{id:id===1?42:84,project_id:id,original_filename:`synthetic-${id}.pdf`,stored_path:"synthetic.pdf",page_count:3,created_at:"2026-11-05"}]);
-  vi.mocked(api.searchDrawingSheets).mockResolvedValue({ drawing_file_id: 42, results: [] });
+  vi.mocked(api.searchDrawingSheets).mockResolvedValue({ drawing_file_id: 42, results: [0, 1, 2].map(page_index => ({ page_index, sheet_no: `SYN${page_index}`, sheet_title: "SYNTHETIC", sheet_role: "FLOOR_PLAN", confidence: 0.9 })) });
   vi.mocked(api.listMeasurements).mockResolvedValue([]);
   vi.mocked(api.getDrawingFileRoomStatus).mockResolvedValue({drawing_file_id:42,rooms:[]});
 });
@@ -87,10 +87,11 @@ describe("application routing", () => {
     await waitFor(() => expect(api.searchDrawingSheets).toHaveBeenCalledWith(42, {}));
     expect((screen.getByLabelText("PDF 쪽 번호") as HTMLInputElement).value).toBe("1");
     expect(screen.getByRole("link", { name: "도면 목록/검색" }).getAttribute("aria-current")).toBe("page");
-    fireEvent.change(screen.getByLabelText("PDF 쪽 번호"), { target: { value: "4" } });
+    await waitFor(() => expect((screen.getByRole("button", { name: "이동" }) as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.change(screen.getByLabelText("PDF 쪽 번호"), { target: { value: "3" } });
     fireEvent.click(screen.getByRole("button", { name: "이동" }));
-    expect(screen.getByLabelText("현재 경로").textContent).toBe("/drawings/42/pages/3");
-    expect(screen.getByRole("img").getAttribute("src")).toContain("/drawing-files/42/pages/3/image");
+    expect(screen.getByLabelText("현재 경로").textContent).toBe("/drawings/42/pages/2");
+    expect(screen.getByRole("img").getAttribute("src")).toContain("/drawing-files/42/pages/2/image");
     fireEvent.click(screen.getByRole("link", { name: "목록으로" }));
     expect(await screen.findByRole("heading", { name: "도면 목록/검색", level: 1 })).toBeTruthy();
     expect(screen.getByLabelText("현재 경로").textContent).toBe("/drawings?drawingFileId=42");
