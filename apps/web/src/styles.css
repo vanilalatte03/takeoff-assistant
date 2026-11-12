@@ -970,6 +970,8 @@ td select {
 .drawing-sheet-info span { font-size: 13px; color: #566474; }
 .page-jump { display: flex; align-items: end; gap: 8px; }
 .page-jump input { width: 96px; }
+.page-navigation { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; }
+.page-navigation-note { flex-basis: 100%; margin: 0; font-size: 13px; color: #566474; }
 .drawing-workspace .manual-measurement-layout { grid-template-columns: minmax(0, 1fr) 300px; }
 .drawing-workspace .measurement-canvas-panel { height: calc(100vh - 228px); min-height: 420px; position: sticky; top: 18px; }
 .drawing-workspace .measurement-tools { padding: 16px; gap: 12px; }
